@@ -1,0 +1,41 @@
+# --- IDE & OS ---
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.log
+
+# --- Java (Spring Boot - backend_led) ---
+**/target/
+**/.mvn/
+**/mvnw
+**/mvnw.cmd
+core
+*.class
+*.jar
+*.war
+*.ear
+
+# --- Node/Web (dashboard_web) ---
+**/node_modules/
+**/dist/
+**/build/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Docker & Databases ---
+**/postgres_data/
+**/mosquitto/data/
+**/mosquitto/log/
+
+# --- ESP32 / IoT (Relay, iot_project) ---
+**/build/
+**/sdkconfig
+**/managed_components/
+**/dependencies.lock
