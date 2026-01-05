@@ -1,8 +1,12 @@
-# Sử dụng JDK 17
-FROM eclipse-temurin:17-jdk
-# Tạo thư mục app
+# Stage 1: Build with Maven
+FROM maven:3.8.5-openjdk-17 AS build
 WORKDIR /app
-# Copy file jar đã build vào container (Sẽ build ở bước sau)
-COPY target/*.jar app.jar
-# Chạy ứng dụng
+COPY pom.xml .
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# Stage 2: Run with JDK
+FROM eclipse-temurin:17-jdk
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
 ENTRYPOINT ["java", "-jar", "app.jar"]
