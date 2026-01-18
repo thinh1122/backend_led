@@ -28,18 +28,16 @@ jobs:
         channel: 'stable'
         
     - name: Install dependencies
-      working-directory: flutter
       run: flutter pub get
       
     - name: Build APK
-      working-directory: flutter
       run: flutter build apk --release
       
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: android-apk
-        path: flutter/build/app/outputs/flutter-apk/app-release.apk
+        path: build/app/outputs/flutter-apk/app-release.apk
         retention-days: 30
 
   build-ios:
@@ -56,15 +54,12 @@ jobs:
         channel: 'stable'
         
     - name: Install dependencies
-      working-directory: flutter
       run: flutter pub get
       
     - name: Build iOS (No Codesign)
-      working-directory: flutter
       run: flutter build ios --release --no-codesign
       
     - name: Create IPA (unsigned)
-      working-directory: flutter
       run: |
         cd build/ios/iphoneos
         mkdir Payload
@@ -75,5 +70,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ios-ipa-unsigned
-        path: flutter/build/ios/iphoneos/app-unsigned.ipa
+        path: build/ios/iphoneos/app-unsigned.ipa
         retention-days: 30
