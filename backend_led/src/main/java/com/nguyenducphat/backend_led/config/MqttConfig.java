@@ -19,15 +19,23 @@ public class MqttConfig {
         DefaultMqttPahoClientFactory factory = new DefaultMqttPahoClientFactory();
         MqttConnectOptions options = new MqttConnectOptions();
         
-        // HiveMQ Cloud Cluster (SSL Port 8883)
-        options.setServerURIs(new String[] { "ssl://397cff1b3ee848298abac387ff2829e2.s1.eu.hivemq.cloud:8883" });
-        options.setUserName("nguyenducphat");
-        options.setPassword("Phat123456".toCharArray());
+        // ⚡ OPTION 1: HiveMQ Cloud (Mặc định)
+        options.setServerURIs(new String[] { "ssl://cff511b394b84e8e9bba66c541c0fde3.s1.eu.hivemq.cloud:8883" });
+        options.setUserName("smarthome");
+        options.setPassword("Smarthome123".toCharArray());
+        
+        // ⚡ OPTION 2: Mosquitto Local (Uncomment để dùng)
+        // options.setServerURIs(new String[] { "tcp://mqtt:1883" }); // "mqtt" là tên service trong docker-compose
+        // Không cần username/password vì allow_anonymous=true
+        
+        options.setCleanSession(true);
+        options.setKeepAliveInterval(30);
         
         factory.setConnectionOptions(options);
         return factory;
     }
 
+    // --- OUTBOUND (Gửi lệnh) ---
     @Bean
     public MessageChannel mqttOutboundChannel() {
         return new DirectChannel();
@@ -37,9 +45,26 @@ public class MqttConfig {
     @ServiceActivator(inputChannel = "mqttOutboundChannel")
     public MessageHandler mqttOutbound() {
         MqttPahoMessageHandler messageHandler =
-                new MqttPahoMessageHandler("backendClient", mqttClientFactory());
+                new MqttPahoMessageHandler("backend_publisher", mqttClientFactory());
         messageHandler.setAsync(true);
-        messageHandler.setDefaultTopic("home/default");
         return messageHandler;
+    }
+
+    // --- INBOUND (Lắng nghe trạng thái để sync Database) ---
+    @Bean
+    public MessageChannel mqttInboundChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    public org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter inbound() {
+        org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter adapter =
+                new org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter(
+                        "backend_subscriber", mqttClientFactory(), "smarthome/devices/+/state");
+        adapter.setCompletionTimeout(5000);
+        adapter.setConverter(new org.springframework.integration.mqtt.support.DefaultPahoMessageConverter());
+        adapter.setQos(1);
+        adapter.setOutputChannel(mqttInboundChannel());
+        return adapter;
     }
 }

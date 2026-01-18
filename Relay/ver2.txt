@@ -1,0 +1,175 @@
+HƯỚNG DẪN NỐI DÂY SMART PLUG - VERSION 2 (CẢI TIẾN)
+========================================================
+
+⚠️ THAY ĐỔI CHÍNH SO VỚI VERSION 1:
+- Đặt ACS712 SAU Relay (thay vì trước) để đo chính xác hơn
+- Chỉ đo dòng điện khi Relay BẬT, tránh nhiễu khi TẮT
+- Thêm hướng dẫn calibration (hiệu chỉnh) cảm biến
+
+========================================================
+
+Mô hình của bạn gồm 2 phần điện áp riêng biệt:
+
+✅ Phần 220V AC (Điện lưới - CẨN THẬN): Chạy từ phích cắm đến ổ cắm qua Relay và cảm biến dòng.
+✅ Phần 5V DC (Điện điều khiển): Nuôi ESP32, Relay Module, cảm biến đo dòng.
+
+========================================================
+BƯỚC 1: Chuẩn bị dây nguồn (Phần 220V)
+========================================================
+
+Tưởng tượng dây phích cắm nguồn của bạn có 2 sợi: Dây Lửa (L) và Dây Nguội (N).
+
+1. Cấp điện cho Hi-Link (Để biến 220V thành 5V nuôi mạch):
+
+   Nối Dây Lửa (L) và Dây Nguội (N) từ phích cắm vào 2 chân đầu vào (Input AC) của cục Hi-Link.
+   (Lúc này cục Hi-Link sẽ có điện).
+
+2. Nối dây ra Ổ cắm thông minh (Load):
+
+   🔥 SƠ ĐỒ NÂNG CẤP (Ver 2):
+   
+   Dây Lửa (L) từ phích cắm -> Nối vào chân COM (Chân giữa) của Relay.
+   Từ chân NO (Thường mở) của Relay -> Nối sang Cọc 1 của Module ACS712.
+   Từ Cọc 2 của ACS712 -> Nối ra Lỗ thứ nhất của cái Ổ cắm cái.
+   Dây Nguội (N) từ phích cắm -> Nối thẳng vào Lỗ thứ hai của cái Ổ cắm cái.
+
+   ✨ Tóm tắt mạch 220V Ver 2: Lửa -> Relay (COM->NO) -> ACS712 -> Ổ Cắm -> Nguội.
+
+   📊 So sánh với Ver 1:
+   - Ver 1: Lửa -> ACS712 -> Relay -> Ổ Cắm -> Nguội
+   - Ver 2: Lửa -> Relay -> ACS712 -> Ổ Cắm -> Nguội (TỐT HƠN)
+
+   💡 Lý do thay đổi:
+   - Khi Relay TẮT: ACS712 không có dòng điện đi qua -> đọc 0A (chính xác)
+   - Khi Relay BẬT: ACS712 đo dòng điện thực của thiết bị
+   - Tránh nhiễu và đọc sai khi Relay ở trạng thái TẮT
+
+========================================================
+BƯỚC 2: Nối dây điều khiển (Phần 5V & Tín hiệu)
+========================================================
+
+Phần này lấy điện từ đầu ra của cục Hi-Link.
+
+1. Chia nguồn 5V (Từ đầu ra Hi-Link):
+
+   Chân +Vo (5V) của Hi-Link: Nối vào chân 5V của ESP32, chân VCC của Relay, chân VCC của ACS712.
+   Chân -Vo (GND) của Hi-Link: Nối vào chân GND của ESP32, chân GND của Relay, chân GND của ACS712.
+   (Lưu ý: Tất cả các chân GND phải nối chung với nhau).
+
+2. Nối Nút nhấn (Nút cơ):
+
+   Nút thường có 2 chân (hoặc 4 chân nhưng là 2 cặp).
+   Chân thứ nhất: Nối vào dây GND (chung với đám GND ở trên).
+   Chân thứ hai: Nối vào chân GPIO 9 trên ESP32 (Theo code).
+
+3. Nối tín hiệu Relay:
+
+   Chân IN của Relay Module -> Nối vào chân GPIO 8 trên ESP32.
+
+4. Nối tín hiệu cảm biến dòng ACS712:
+
+   Chân OUT của ACS712 -> Nối vào chân GPIO 0 (ADC) trên ESP32.
+
+========================================================
+TỔNG HỢP KIỂM TRA (CHECKLIST Ver 2)
+========================================================
+
+Bạn dò lại dây 1 lần nữa trước khi cắm điện:
+
+✅ Relay:
+   - VCC -> 5V
+   - GND -> GND
+   - IN -> GPIO 8
+   - COM (220V) -> Nối với Dây Lửa từ phích cắm
+   - NO (220V) -> Nối vào Cọc 1 ACS712 ⭐ (THAY ĐỔI)
+
+✅ Nút nhấn:
+   - Một chân -> GND
+   - Một chân -> GPIO 9
+
+✅ ACS712:
+   - VCC -> 5V
+   - GND -> GND
+   - OUT -> GPIO 0
+   - Cọc 1 (220V) -> Nối với chân NO của Relay ⭐ (THAY ĐỔI)
+   - Cọc 2 (220V) -> Nối ra Ổ cắm
+
+✅ Hi-Link:
+   - Input AC -> Lửa (L) và Nguội (N) từ phích cắm
+   - +Vo (5V) -> Chia cho ESP32, Relay, ACS712
+   - -Vo (GND) -> Nối chung tất cả GND
+
+========================================================
+BƯỚC 3: HIỆU CHỈNH CẢM BIẾN (CALIBRATION)
+========================================================
+
+Sau khi nối dây xong, bạn cần hiệu chỉnh ACS712 để đo chính xác:
+
+1. Xác định model ACS712 của bạn:
+   - ACS712-5A: Đo tối đa 5A (độ nhạy 185 mV/A)
+   - ACS712-20A: Đo tối đa 20A (độ nhạy 100 mV/A)
+   - ACS712-30A: Đo tối đa 30A (độ nhạy 66 mV/A)
+
+2. Đo giá trị OFFSET (Không tải):
+   - Cắm điện nhưng KHÔNG cắm thiết bị vào ổ cắm
+   - Bật Relay ON
+   - Đọc giá trị ADC từ ESP32 -> Đây là giá trị OFFSET (thường ~512 với ADC 10-bit, ~2048 với ADC 12-bit)
+   - Lưu lại giá trị này để trừ đi trong code
+
+3. Kiểm tra với tải chuẩn:
+   - Cắm bóng đèn 60W (hoặc thiết bị biết công suất)
+   - Tính dòng điện lý thuyết: I = P/V = 60W/220V ≈ 0.27A
+   - So sánh với giá trị đo được
+   - Điều chỉnh công thức trong code nếu sai lệch
+
+4. Công thức tính trong code ESP32:
+   ```
+   float voltage = (adc_value * 3.3) / 4095.0;  // ESP32-C3 dùng ADC 12-bit
+   float current = (voltage - offset_voltage) / sensitivity;
+   float power = current * 220.0;  // Công suất (W)
+   ```
+
+   Trong đó:
+   - offset_voltage: Điện áp khi không có tải (~1.65V cho nguồn 3.3V)
+   - sensitivity: Độ nhạy theo model (VD: 0.1 V/A cho ACS712-20A)
+
+========================================================
+LƯU Ý AN TOÀN ⚠️
+========================================================
+
+1. ⚡ Khi test, nhớ bọc băng dính điện kỹ các mối nối 220V.
+2. 🚫 Đừng chạm tay vào board mạch khi đang cắm phích điện.
+3. 🔌 Ngắt nguồn 220V trước khi sửa dây hoặc kiểm tra mạch.
+4. 🧰 Dùng đồng hồ vạn năng để kiểm tra điện áp trước khi cắm ESP32.
+5. 🔥 Kiểm tra relay có phát nhiệt bất thường không (nếu có là dây nối lỏng).
+6. 📏 Đảm bảo khoảng cách cách điện giữa phần 220V và phần 5V.
+
+========================================================
+SO SÁNH ƯU NHƯỢC ĐIỂM
+========================================================
+
+📊 Version 1 (ACS712 trước Relay):
+   ❌ Nhược điểm:
+      - Đọc dòng điện ngay cả khi Relay TẮT (có thể bị nhiễu)
+      - Kém chính xác khi Relay TẮT
+   ✅ Ưu điểm:
+      - Đơn giản hơn một chút
+
+📊 Version 2 (ACS712 sau Relay) - KHUYÊN DÙNG:
+   ✅ Ưu điểm:
+      - Chỉ đo dòng điện khi có tải THẬT (Relay BẬT)
+      - Chính xác hơn, ít nhiễu hơn
+      - Dễ dàng calibration
+      - Đọc 0A khi Relay TẮT (logic đúng)
+   ❌ Nhược điểm:
+      - Không có (đây là cách nối chuẩn)
+
+========================================================
+KẾT LUẬN
+========================================================
+
+✨ Version 2 đo ĐƯỢC và CHUẨN HƠN Version 1.
+✨ Nhớ thực hiện calibration để có kết quả chính xác nhất.
+✨ Luôn ưu tiên an toàn khi làm việc với điện 220V.
+
+Chúc bạn thành công! 🚀

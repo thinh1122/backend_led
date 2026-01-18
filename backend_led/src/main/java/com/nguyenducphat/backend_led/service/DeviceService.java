@@ -134,10 +134,9 @@ public class DeviceService {
             System.out.println("Backend sending MQTT to: " + setTopic + " Payload: " + payload);
             mqttGateway.sendToMqtt(setTopic, payload);
             
-            // 2. Gửi đến /state topic (cho App/Web sync realtime)
-            String stateTopic = "smarthome/devices/" + deviceIdForMqtt + "/state";
-            System.out.println("Backend sending MQTT to: " + stateTopic + " Payload: " + payload);
-            mqttGateway.sendToMqtt(stateTopic, payload);
+            // 💡 QUAN TRỌNG: Backend KHÔNG gửi đến /state topic nữa.
+            // Hãy để ESP32 tự báo cáo trạng thái thực tế của nó. 
+            // Việc này giúp tránh xung đột và App/Web sẽ nhận confirm TRỰC TIẾP từ ESP32 nhanh hơn.
             
         } catch (Exception e) {
             System.err.println("Lỗi gửi MQTT: " + e.getMessage());

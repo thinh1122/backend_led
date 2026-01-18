@@ -24,6 +24,7 @@ public class AuthService {
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
+                .fullName(request.getFullName())
                 .build();
 
         userRepository.save(user);
@@ -33,6 +34,7 @@ public class AuthService {
         return LoginResponse.builder()
                 .token(token)
                 .email(user.getEmail())
+                .fullName(user.getFullName())
                 .build();
     }
 
@@ -49,6 +51,7 @@ public class AuthService {
         return LoginResponse.builder()
                 .token(token)
                 .email(user.getEmail())
+                .fullName(user.getFullName())
                 .build();
     }
 }

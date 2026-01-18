@@ -1,0 +1,36 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║   ⚠️  QUAN TRỌNG: ĐỌC TRƯỚC KHI CHẠY APP  ⚠️                 ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+❌ APP NÀY KHÔNG HỖ TRỢ WINDOWS DESKTOP!
+
+✅ Chỉ chạy được trên:
+   - Android (Emulator hoặc Physical Device)
+   - iOS (Simulator hoặc Physical Device)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚀 CÁCH CHẠY NHANH:
+
+1. Mở Android Emulator (từ Android Studio)
+
+2. Chạy lệnh:
+   flutter run -d emulator-5554
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🖥️ CHẠY TỪ IDE (IntelliJ IDEA / Android Studio):
+
+1. Nhìn lên góc trên bên phải IDE
+2. Tìm dropdown "Device"
+3. ⚠️ CHỌN "sdk gphone64 x86 64" (Android Emulator)
+4. ❌ KHÔNG CHỌN "Windows"
+5. Click nút Run (▶️)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📖 Xem hướng dẫn chi tiết trong file: HOW_TO_RUN.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

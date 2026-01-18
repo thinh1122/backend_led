@@ -1,0 +1,58 @@
+Được, đây là hướng dẫn nối dây chi tiết từng bước, cầm tay chỉ việc cho bạn.
+
+Mô hình của bạn gồm 2 phần điện áp riêng biệt:
+
+Phần 220V AC (Điện lưới - CẨN THẬN): Chạy từ phích cắm đến ổ cắm qua Relay và cảm biến dòng.
+Phần 5V DC (Điện điều khiển): Nuôi ESP32, Relay Module, cảm biến đo dòng.
+BƯỚC 1: Chuẩn bị dây nguồn (Phần 220V)
+Tưởng tượng dây phích cắm nguồn của bạn có 2 sợi: Dây Lửa (L) và Dây Nguội (N).
+
+1. Cấp điện cho Hi-Link (Để biến 220V thành 5V nuôi mạch):
+
+Nối Dây Lửa (L) và Dây Nguội (N) từ phích cắm vào 2 chân đầu vào (Input AC) của cục Hi-Link.
+(Lúc này cục Hi-Link sẽ có điện).
+2. Nối dây ra Ổ cắm thông minh (Load): Chúng ta sẽ đi đường đi của dòng điện như sau (mắc nối tiếp):
+
+Dây Lửa (L) từ phích cắm -> Nối vào Cọc 1 của Module ACS712.
+Từ Cọc 2 của ACS712 -> Nối sang chân COM (Chân giữa) của Relay.
+Từ chân NO (Thường mở) của Relay -> Nối ra Lỗ thứ nhất của cái Ổ cắm cái.
+Dây Nguội (N) từ phích cắm -> Nối thẳng vào Lỗ thứ hai của cái Ổ cắm cái.
+Tóm tắt mạch 220V: Lửa -> ACS712 -> Relay -> Ổ Cắm -> Nguội.
+
+BƯỚC 2: Nối dây điều khiển (Phần 5V & Tín hiệu)
+Phần này lấy điện từ đầu ra của cục Hi-Link.
+
+1. Chia nguồn 5V (Từ đầu ra Hi-Link):
+
+Chân +Vo (5V) của Hi-Link: Nối vào chân 5V của ESP32, chân VCC của Relay, chân VCC của ACS712.
+Chân -Vo (GND) của Hi-Link: Nối vào chân GND của ESP32, chân GND của Relay, chân GND của ACS712.
+(Lưu ý: Tất cả các chân GND phải nối chung với nhau).
+2. Nối Nút nhấn (Nút cơ):
+
+Nút thường có 2 chân (hoặc 4 chân nhưng là 2 cặp).
+Chân thứ nhất: Nối vào dây GND (chung với đám GND ở trên).
+Chân thứ hai: Nối vào chân GPIO 9 trên ESP32 (Theo code vừa sửa).
+3. Nối tín hiệu Relay:
+
+Chân IN của Relay Module -> Nối vào chân GPIO 8 trên ESP32.
+4. Nối tín hiệu cảm biến dòng ACS712:
+
+Chân OUT của ACS712 -> Nối vào chân GPIO 0 (ADC) trên ESP32.
+TỔNG HỢP KIỂM TRA (CHECKLIST)
+Bạn dò lại dây 1 lần nữa trước khi cắm điện:
+
+Relay:
+VCC -> 5V
+GND -> GND
+IN -> GPIO 8
+COM (220V) -> Nối với ACS712.
+NO (220V) -> Nối ra Ổ cắm.
+Nút nhấn:
+Một chân -> GND
+Một chân -> GPIO 9
+ACS712:
+VCC -> 5V
+GND -> GND
+OUT -> GPIO 0
+Cọc to xanh lá (220V) -> Nối tiếp giữa Nguồn và Relay.
+Lưu ý an toàn: Khi test, nhớ bọc băng dính điện kỹ các mối nối 220V. Đừng chạm tay vào board mạch khi đang cắm phích điện.

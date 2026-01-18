@@ -14,4 +14,6 @@ import java.util.UUID;
 public interface DeviceRepository extends JpaRepository<Device, UUID> {
     @Query("SELECT d FROM Device d WHERE d.room.house.owner = :owner")
     List<Device> findByOwner(@Param("owner") User owner);
+
+    java.util.Optional<Device> findByHardwareId(String hardwareId);
 }
