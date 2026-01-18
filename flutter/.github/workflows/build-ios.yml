@@ -10,9 +10,6 @@ on:
 jobs:
   build-ios:
     runs-on: macos-latest
-    defaults:
-      run:
-        working-directory: flutter
     
     steps:
     - name: Checkout code
@@ -25,16 +22,19 @@ jobs:
         channel: 'stable'
         
     - name: Install dependencies
+      working-directory: flutter
       run: flutter pub get
       
     - name: Analyze code
+      working-directory: flutter
       run: flutter analyze --no-fatal-infos
       
     - name: Build iOS (No Codesign)
-      run: |
-        flutter build ios --release --no-codesign
+      working-directory: flutter
+      run: flutter build ios --release --no-codesign
         
     - name: Create IPA (unsigned)
+      working-directory: flutter
       run: |
         cd build/ios/iphoneos
         mkdir Payload
@@ -45,5 +45,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ios-app-unsigned
-        path: build/ios/iphoneos/app-unsigned.ipa
+        path: flutter/build/ios/iphoneos/app-unsigned.ipa
         retention-days: 7
