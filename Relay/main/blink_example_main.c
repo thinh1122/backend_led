@@ -153,9 +153,9 @@ void button_task(void *pvParameters)
  *                  TEST MODE CONFIG (QUAN TRỌNG)
  *  Điền WiFi nhà bạn vào đây để test MQTT không cần App
  * ===================================================== */
-#define TEST_WIFI_SSID    "p"     // <--- Sửa tên WiFi ở đây
-#define TEST_WIFI_PASS    "12345678"        // <--- Sửa mật khẩu ở đây
-#define FORCE_TEST_MODE   false                  // Đổi thành false nếu muốn quay lại dùng App cài đặt
+#define TEST_WIFI_SSID    "OPPO"               // <--- WiFi OPPO
+#define TEST_WIFI_PASS    "12121212"           // <--- Mật khẩu OPPO
+#define FORCE_TEST_MODE   false                // TẮT test mode - Dùng app để cấu hình WiFi
 
 /* =====================================================
  *                  FUNCTION PROTOTYPES
@@ -537,15 +537,65 @@ static esp_err_t save_wifi_credentials(const char *ssid, const char *password) {
     return ESP_OK;
 }
 
-// Sự kiện WiFi
+// Sự kiện WiFi với logging chi tiết
 static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
     if (event_id == WIFI_EVENT_STA_START) {
+        ESP_LOGI(TAG, "📡 WiFi Started - Attempting to connect...");
         esp_wifi_connect();
-    } else if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        esp_wifi_connect(); // Retry forever
+    } 
+    else if (event_id == WIFI_EVENT_STA_CONNECTED) {
+        wifi_event_sta_connected_t* event = (wifi_event_sta_connected_t*) event_data;
+        ESP_LOGI(TAG, "✅ WiFi Connected Successfully!");
+        ESP_LOGI(TAG, "   SSID: %s", event->ssid);
+        ESP_LOGI(TAG, "   Channel: %d", event->channel);
+        ESP_LOGI(TAG, "   Auth Mode: %d", event->authmode);
+        ESP_LOGI(TAG, "⏳ Waiting for IP address...");
+        set_led_color(0, 255, 255); // Cyan: Đã kết nối WiFi, chờ IP
+    }
+    else if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        wifi_event_sta_disconnected_t* event = (wifi_event_sta_disconnected_t*) event_data;
+        ESP_LOGW(TAG, "❌ WiFi Disconnected!");
+        ESP_LOGW(TAG, "   SSID: %s", event->ssid);
+        ESP_LOGW(TAG, "   Reason Code: %d", event->reason);
+        
+        // Giải thích mã lỗi phổ biến
+        switch(event->reason) {
+            case WIFI_REASON_AUTH_EXPIRE:
+            case WIFI_REASON_AUTH_LEAVE:
+            case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+            case WIFI_REASON_HANDSHAKE_TIMEOUT:
+                ESP_LOGE(TAG, "   ⚠️ AUTHENTICATION FAILED - Kiểm tra mật khẩu WiFi!");
+                ESP_LOGE(TAG, "   💡 Lưu ý: ESP32 chỉ hỗ trợ WPA2-PSK (KHÔNG hỗ trợ WPA3)");
+                break;
+            case WIFI_REASON_NO_AP_FOUND:
+                ESP_LOGE(TAG, "   ⚠️ KHÔNG TÌM THẤY WIFI - Kiểm tra tên WiFi (SSID)!");
+                ESP_LOGE(TAG, "   💡 Lưu ý: ESP32-C3 chỉ hỗ trợ WiFi 2.4GHz (KHÔNG hỗ trợ 5GHz)");
+                break;
+            case WIFI_REASON_ASSOC_FAIL:
+                ESP_LOGE(TAG, "   ⚠️ ASSOCIATION FAILED - Router từ chối kết nối!");
+                ESP_LOGE(TAG, "   💡 Có thể do: Tín hiệu yếu, Router quá tải, hoặc MAC bị chặn");
+                break;
+            case WIFI_REASON_CONNECTION_FAIL:
+                ESP_LOGE(TAG, "   ⚠️ CONNECTION FAILED - Lỗi kết nối chung");
+                break;
+            default:
+                ESP_LOGE(TAG, "   ⚠️ Lỗi không xác định (Code: %d)", event->reason);
+                break;
+        }
+        
+        ESP_LOGI(TAG, "🔄 Retrying connection in 5 seconds...");
+        vTaskDelay(pdMS_TO_TICKS(5000)); // Chờ 5s trước khi thử lại
+        esp_wifi_connect();
         set_led_color(255, 165, 0); // Cam: Đang connect lại
-    } else if (event_id == IP_EVENT_STA_GOT_IP) {
-        // Start MQTT
+    } 
+    else if (event_id == IP_EVENT_STA_GOT_IP) {
+        ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+        ESP_LOGI(TAG, "🌐 IP Address Obtained!");
+        ESP_LOGI(TAG, "   IP: " IPSTR, IP2STR(&event->ip_info.ip));
+        ESP_LOGI(TAG, "   Netmask: " IPSTR, IP2STR(&event->ip_info.netmask));
+        ESP_LOGI(TAG, "   Gateway: " IPSTR, IP2STR(&event->ip_info.gw));
+        ESP_LOGI(TAG, "🚀 Starting MQTT connection...");
+        set_led_color(0, 50, 255); // Xanh dương: Đã có IP, đang kết nối MQTT
         mqtt_app_start();
     }
 }
@@ -592,11 +642,23 @@ void app_main(void) {
 
     if (strlen(ssid) > 0) {
         // Mode: STATION (Đã có WiFi)
-        ESP_LOGI(TAG, "Connecting to WiFi: %s", ssid);
+        ESP_LOGI(TAG, "=============================================");
+        ESP_LOGI(TAG, "📶 CONNECTING TO WIFI:");
+        ESP_LOGI(TAG, "   SSID: %s", ssid);
+        ESP_LOGI(TAG, "   Password: %s", pass);
+        ESP_LOGI(TAG, "=============================================");
+        
+        // Chờ 1s để WiFi driver ổn định
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        
         esp_netif_create_default_wifi_sta();
         wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
         esp_wifi_init(&cfg);
-        esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL);
+        
+        // Đăng ký tất cả WiFi events để theo dõi chi tiết
+        esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_START, &wifi_event_handler, NULL);
+        esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_CONNECTED, &wifi_event_handler, NULL);
+        esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &wifi_event_handler, NULL);
         esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL);
         
         wifi_config_t wifi_config = {0};
