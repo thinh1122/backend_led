@@ -85,16 +85,11 @@ class BluetoothService {
       }
     }
     
-    // 3. iOS - just check Bluetooth permission (handled by system)
+    // 3. iOS - Bluetooth permission tự động được hỏi khi startScan()
+    // Không cần dùng permission_handler vì iOS tự động trigger
     if (Platform.isIOS) {
-      final bleStatus = await Permission.bluetooth.status;
-      if (!bleStatus.isGranted) {
-        final result = await Permission.bluetooth.request();
-        if (!result.isGranted) {
-          _showPermissionDeniedDialog(context, "Bluetooth");
-          return false;
-        }
-      }
+      // Chỉ cần check adapter state, permission sẽ được hỏi tự động
+      debugPrint("iOS: Bluetooth permission will be requested automatically on first scan");
     }
     
     return true;

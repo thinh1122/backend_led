@@ -52,6 +52,16 @@
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>This app needs Bluetooth to connect and configure your smart home devices</string>
 	
+	<!-- iOS 13+ Bluetooth Permissions -->
+	<key>NSBluetoothWhileUsingUsageDescription</key>
+	<string>This app needs Bluetooth to scan and connect to your smart home devices</string>
+	
+	<!-- Location Permission (required for Bluetooth scanning on iOS) -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs location access to scan for nearby Bluetooth devices</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app needs location access to scan for nearby Bluetooth devices</string>
+	
 	<!-- Camera Permission for QR Code Scanner -->
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs camera access to scan QR codes for device setup</string>

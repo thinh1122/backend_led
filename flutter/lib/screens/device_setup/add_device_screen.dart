@@ -19,7 +19,7 @@ class AddDeviceScreen extends StatefulWidget {
   State<AddDeviceScreen> createState() => _AddDeviceScreenState();
 }
 
-class _AddDeviceScreenState extends State<AddDeviceScreen> with SingleTickerProviderStateMixin {
+class _AddDeviceScreenState extends State<AddDeviceScreen> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _controller;
   int _selectedTab = 0; // 0: Nearby, 1: Manual
   int _selectedCategoryIndex = 0;
@@ -65,12 +65,22 @@ class _AddDeviceScreenState extends State<AddDeviceScreen> with SingleTickerProv
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2), // Speed of one ripple wave
     )..repeat();
 
     _startNearbyScan();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Khi user quay lại app từ Settings, thử scan lại
+    if (state == AppLifecycleState.resumed && !_isScanning) {
+      _startNearbyScan();
+    }
   }
 
   Future<void> _startNearbyScan() async {
@@ -85,18 +95,31 @@ class _AddDeviceScreenState extends State<AddDeviceScreen> with SingleTickerProv
     });
 
     try {
+      // iOS: Không dùng withKeywords vì iOS cache và filter khác Android
       await FlutterBluePlus.startScan(
         timeout: const Duration(seconds: 15),
-        withKeywords: ["PROV_"], // Chỉ tìm các thiết bị đang ở chế độ provisioning
+        // Bỏ withKeywords để iOS có thể thấy tất cả devices
       );
 
       _scanSubscription = FlutterBluePlus.scanResults.listen((results) {
         if (mounted) {
           setState(() {
-            _nearbyDevices = results.where((r) => 
-               r.device.platformName.isNotEmpty && 
-               r.device.platformName.startsWith("PROV_")
-            ).toList();
+            // Filter sau khi nhận results
+            _nearbyDevices = results.where((r) {
+              final name = r.device.platformName;
+              // Chấp nhận cả device có tên PROV_ hoặc device có advertisementData chứa service UUID
+              return name.isNotEmpty && 
+                     (name.startsWith("PROV_") || 
+                      name.toLowerCase().contains("esp") ||
+                      r.advertisementData.serviceUuids.isNotEmpty);
+            }).toList();
+            
+            // Debug: In ra tất cả devices để check
+            debugPrint("=== Bluetooth Scan Results ===");
+            for (var r in results) {
+              debugPrint("Device: ${r.device.platformName} | ID: ${r.device.remoteId} | RSSI: ${r.rssi}");
+              debugPrint("  Services: ${r.advertisementData.serviceUuids}");
+            }
           });
         }
       });
@@ -113,6 +136,7 @@ class _AddDeviceScreenState extends State<AddDeviceScreen> with SingleTickerProv
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     _scanSubscription?.cancel();
     FlutterBluePlus.stopScan();

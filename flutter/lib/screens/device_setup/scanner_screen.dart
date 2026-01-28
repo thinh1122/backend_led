@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:iot_project/theme.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'dart:convert';
 import 'package:iot_project/services/api_service.dart';
@@ -23,6 +24,82 @@ class _ScannerScreenState extends State<ScannerScreen> {
   final ImagePicker _picker = ImagePicker();
   bool _isScanned = false;
   bool _isProcessing = false;
+  bool _cameraPermissionGranted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkCameraPermission();
+  }
+
+  Future<void> _checkCameraPermission() async {
+    final status = await Permission.camera.status;
+    if (status.isGranted) {
+      setState(() => _cameraPermissionGranted = true);
+    } else {
+      final result = await Permission.camera.request();
+      if (result.isGranted) {
+        setState(() => _cameraPermissionGranted = true);
+      } else {
+        _showCameraPermissionDialog();
+      }
+    }
+  }
+
+  void _showCameraPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        icon: Icon(
+          Icons.camera_alt_outlined,
+          size: 56,
+          color: Colors.orange[400],
+        ),
+        title: Text(
+          "Cần quyền Camera",
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          "Ứng dụng cần quyền truy cập Camera để quét mã QR thiết bị. Vui lòng cấp quyền trong Cài đặt.",
+          style: GoogleFonts.outfit(),
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pop(context); // Quay về màn trước
+            },
+            child: Text(
+              "Hủy",
+              style: GoogleFonts.outfit(color: Colors.grey[600]),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              openAppSettings();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              "MỞ CÀI ĐẶT",
+              style: GoogleFonts.outfit(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _pickImageFromGallery() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
@@ -55,6 +132,25 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_cameraPermissionGranted) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.camera_alt_outlined, size: 80, color: Colors.white.withOpacity(0.5)),
+              const SizedBox(height: 16),
+              Text(
+                "Đang chờ quyền Camera...",
+                style: GoogleFonts.outfit(color: Colors.white, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(

@@ -78,6 +78,16 @@ class _BleProvisioningScreenState extends State<BleProvisioningScreen> {
     });
 
     try {
+      // Check Bluetooth state first
+      final adapterState = await FlutterBluePlus.adapterState.first;
+      if (adapterState != BluetoothAdapterState.on) {
+        setState(() {
+          _status = BleStatus.error;
+          _statusMessage = "Vui lòng bật Bluetooth trong Settings";
+        });
+        return;
+      }
+      
       // Bắt đầu scan
       await FlutterBluePlus.startScan(timeout: const Duration(seconds: 15));
       
