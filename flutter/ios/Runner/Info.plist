@@ -56,6 +56,10 @@
 	<key>NSBluetoothWhileUsingUsageDescription</key>
 	<string>This app needs Bluetooth to scan and connect to your smart home devices</string>
 	
+	<!-- iOS 18+ Bluetooth LE Permissions -->
+	<key>NSBluetoothLEUsageDescription</key>
+	<string>This app needs Bluetooth LE to scan and connect to your smart home devices</string>
+	
 	<!-- Location Permission (required for Bluetooth scanning on iOS) -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>This app needs location access to scan for nearby Bluetooth devices</string>
