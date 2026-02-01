@@ -19,10 +19,15 @@ public class MqttConfig {
         DefaultMqttPahoClientFactory factory = new DefaultMqttPahoClientFactory();
         MqttConnectOptions options = new MqttConnectOptions();
         
-        // ⚡ ĐỒNG NHẤT VỚI WEB DASHBOARD: HiveMQ Cloud
-        options.setServerURIs(new String[] { "ssl://14baa3968cc940f9862d88e92ef01c3d.s1.eu.hivemq.cloud:8883" });
+        // ⚡ OPTION 1: HiveMQ Cloud (Mặc định)
+        options.setServerURIs(new String[] { "ssl://cff511b394b84e8e9bba66c541c0fde3.s1.eu.hivemq.cloud:8883" });
         options.setUserName("smarthome");
         options.setPassword("Smarthome123".toCharArray());
+        
+        // ⚡ OPTION 2: Mosquitto Local (Uncomment để dùng)
+        // options.setServerURIs(new String[] { "tcp://mqtt:1883" }); // "mqtt" là tên service trong docker-compose
+        // Không cần username/password vì allow_anonymous=true
+        
         options.setCleanSession(true);
         options.setKeepAliveInterval(30);
         
