@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -33,6 +34,16 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   Future<void> _checkCameraPermission() async {
+    // iOS tự động request camera permission khi MobileScanner được khởi tạo
+    // Không cần dùng permission_handler vì không hoạt động đúng trên iOS 26+
+    if (Platform.isIOS) {
+      // iOS: Cho phép scanner khởi tạo, iOS sẽ tự động hỏi quyền
+      debugPrint("✅ iOS: Camera permission will be requested automatically by MobileScanner");
+      setState(() => _cameraPermissionGranted = true);
+      return;
+    }
+    
+    // Android: Vẫn cần check permission thủ công
     final status = await Permission.camera.status;
     if (status.isGranted) {
       setState(() => _cameraPermissionGranted = true);

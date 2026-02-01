@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iot_project/screens/device_control/control_device_screen.dart';
+import 'package:iot_project/screens/device_control/device_detail_screen.dart';
 import 'package:iot_project/services/api_service.dart';
 import 'package:iot_project/services/device_service.dart';
 import 'package:iot_project/services/mqtt_service.dart';
@@ -178,29 +179,13 @@ class HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
   }
 
   void _navigateToControl(Map<String, dynamic> device) {
-    final name = device['name'].toString().toLowerCase();
-    
-    // Chỉ điều hướng nếu là các thiết bị đã làm giao diện
-    bool isSupported = name.contains('lamp') || 
-                       name.contains('đèn') ||
-                       name.contains('cctv') || 
-                       name.contains('webcam') || 
-                       name.contains('speaker') || 
-                       name.contains('loa') || 
-                       name.contains('air conditioner') || 
-                       name.contains('điều hòa');
-
-    if (isSupported) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ControlDeviceScreen(
-            deviceName: device['name'],
-            deviceImage: device['image'],
-          ),
-        ),
-      );
-    }
+    // Mở màn hình chi tiết thiết bị với tab điều khiển và hẹn giờ
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DeviceDetailScreen(device: device),
+      ),
+    );
   }
 
   void _toggleDevice(Map<String, dynamic> device, bool value) async {

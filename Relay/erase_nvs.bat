@@ -1,18 +1,19 @@
 @echo off
 echo ========================================
-echo Xoa bo nho WiFi trong ESP32
+echo    XOA BO NHO NVS (CHI XOA WIFI)
 echo ========================================
-echo.
-echo Dang xoa NVS (Non-Volatile Storage)...
 echo.
 
-REM Thay COM3 bang port cua ban
-idf.py -p COM3 erase-flash
+set IDF_PATH=C:\Users\DELL\esp\v5.1.6\esp-idf
+
+echo Dang xoa NVS partition (WiFi credentials)...
+python %IDF_PATH%\components\esptool_py\esptool\esptool.py --chip esp32c3 --port COM6 erase_region 0x9000 0x4000
 
 echo.
 echo ========================================
-echo Da xoa xong! 
-echo Giờ flash lại firmware:
-echo   idf.py -p COM3 flash monitor
+echo    HOAN TAT!
 echo ========================================
+echo WiFi da duoc xoa
+echo Nhan nut RESET tren ESP32 de bat Bluetooth
+echo.
 pause

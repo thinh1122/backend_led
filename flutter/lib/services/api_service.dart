@@ -151,6 +151,71 @@ class ApiService {
     }
   }
 
+  // ===== SCHEDULE API =====
+  Future<List<Map<String, dynamic>>> getSchedulesByDevice(int deviceId) async {
+    try {
+      final response = await _dio.get("/schedules/device/$deviceId");
+      if (response.statusCode == 200 && response.data is List) {
+        return List<Map<String, dynamic>>.from(response.data);
+      }
+      return [];
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<Response> createSchedule({
+    required int deviceId,
+    required String time,
+    required String action,
+    String? name,
+    bool enabled = true,
+    String repeatDays = "1,2,3,4,5,6,7",
+  }) async {
+    try {
+      return await _dio.post("/schedules", data: {
+        "deviceId": deviceId,
+        "time": time,
+        "action": action,
+        "name": name,
+        "enabled": enabled,
+        "repeatDays": repeatDays,
+      });
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<Response> updateSchedule(
+    int scheduleId, {
+    String? time,
+    String? action,
+    bool? enabled,
+    String? name,
+    String? repeatDays,
+  }) async {
+    try {
+      final data = <String, dynamic>{};
+      if (time != null) data['time'] = time;
+      if (action != null) data['action'] = action;
+      if (enabled != null) data['enabled'] = enabled;
+      if (name != null) data['name'] = name;
+      if (repeatDays != null) data['repeatDays'] = repeatDays;
+
+      return await _dio.put("/schedules/$scheduleId", data: data);
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<Response> deleteSchedule(int scheduleId) async {
+    try {
+      return await _dio.delete("/schedules/$scheduleId");
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   String _handleError(DioException e) {
     if (e.response != null) {
       final data = e.response?.data;

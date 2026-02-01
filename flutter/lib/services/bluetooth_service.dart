@@ -42,7 +42,14 @@ class BluetoothService {
       }
     }
     
-    // 2. Check permissions (Android)
+    // 2. iOS - Bluetooth permission tự động được hỏi khi startScan()
+    // KHÔNG dùng permission_handler trên iOS vì không hoạt động đúng trên iOS 26+
+    if (Platform.isIOS) {
+      debugPrint("✅ iOS: Bluetooth is ON. Permission will be requested automatically on first scan");
+      return true; // Trả về true ngay, iOS tự xử lý permission
+    }
+    
+    // 3. Check permissions (Android only)
     if (Platform.isAndroid) {
       // Bluetooth Scan permission
       final bleScanStatus = await Permission.bluetoothScan.status;
@@ -83,13 +90,6 @@ class BluetoothService {
         }
         return false;
       }
-    }
-    
-    // 3. iOS - Bluetooth permission tự động được hỏi khi startScan()
-    // Không cần dùng permission_handler vì iOS tự động trigger
-    if (Platform.isIOS) {
-      // Chỉ cần check adapter state, permission sẽ được hỏi tự động
-      debugPrint("iOS: Bluetooth permission will be requested automatically on first scan");
     }
     
     return true;
