@@ -6,7 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "schedules")
@@ -16,8 +15,8 @@ import java.util.UUID;
 public class Schedule {
     
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
     
     @ManyToOne
     @JoinColumn(name = "device_id", nullable = false)

@@ -5,11 +5,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.UUID;
 
 @Repository
-public interface ScheduleRepository extends JpaRepository<Schedule, UUID> {
-    List<Schedule> findByDeviceId(UUID deviceId);
-    List<Schedule> findByDeviceIdAndEnabled(UUID deviceId, Boolean enabled);
+public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
+    List<Schedule> findByDeviceId(Long deviceId);
+    List<Schedule> findByDeviceIdAndEnabled(Long deviceId, Boolean enabled);
     List<Schedule> findByEnabled(Boolean enabled);
 }

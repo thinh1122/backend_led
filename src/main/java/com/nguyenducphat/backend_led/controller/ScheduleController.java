@@ -8,7 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/schedules")
@@ -23,19 +22,19 @@ public class ScheduleController {
     }
     
     @GetMapping("/device/{deviceId}")
-    public ResponseEntity<List<ScheduleResponse>> getSchedulesByDevice(@PathVariable UUID deviceId) {
+    public ResponseEntity<List<ScheduleResponse>> getSchedulesByDevice(@PathVariable Long deviceId) {
         return ResponseEntity.ok(scheduleService.getSchedulesByDevice(deviceId));
     }
     
     @PutMapping("/{id}")
     public ResponseEntity<ScheduleResponse> updateSchedule(
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @RequestBody ScheduleRequest request) {
         return ResponseEntity.ok(scheduleService.updateSchedule(id, request));
     }
     
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteSchedule(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteSchedule(@PathVariable Long id) {
         scheduleService.deleteSchedule(id);
         return ResponseEntity.ok().build();
     }
