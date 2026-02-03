@@ -6,14 +6,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class DeviceResponse {
-    private UUID id;
+    private Long id;
     private String name;
     private String hardwareId;
 
@@ -27,5 +25,5 @@ public class DeviceResponse {
     private boolean isCamera;
     
     private String roomName;
-    private UUID roomId;
+    private Long roomId;
 }

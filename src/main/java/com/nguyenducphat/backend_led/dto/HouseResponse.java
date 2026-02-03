@@ -6,14 +6,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
-import java.util.UUID;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class HouseResponse {
-    private UUID id;
+    private Long id;
     private String name;
     private String address;
     private List<RoomResponse> rooms;
@@ -23,7 +22,7 @@ public class HouseResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class RoomResponse {
-        private UUID id;
+        private Long id;
         private String name;
     }
 }

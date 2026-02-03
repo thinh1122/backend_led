@@ -3,8 +3,6 @@ package com.nguyenducphat.backend_led.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.UUID;
-
 @Entity
 @Table(name = "devices")
 @Getter
@@ -14,8 +12,8 @@ import java.util.UUID;
 @Builder
 public class Device {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(nullable = false)
     private String name;

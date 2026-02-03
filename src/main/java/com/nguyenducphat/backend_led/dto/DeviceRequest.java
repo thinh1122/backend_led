@@ -5,8 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,5 +16,5 @@ public class DeviceRequest {
     private String type;
     private String image;
     private boolean isCamera;
-    private UUID roomId; // Optional: if null, assign to a default room
+    private Long roomId; // Optional: if null, assign to a default room
 }
