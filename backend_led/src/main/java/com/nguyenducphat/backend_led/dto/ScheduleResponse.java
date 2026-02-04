@@ -4,14 +4,12 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class ScheduleResponse {
-    private UUID id;
-    private UUID deviceId;
+    private Long id;
+    private Long deviceId;
     private String time; // "HH:mm"
     private String action; // "ON" hoặc "OFF"
     private Boolean enabled;

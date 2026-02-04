@@ -25,13 +25,13 @@ public class DeviceController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteDevice(@PathVariable java.util.UUID id) {
+    public ResponseEntity<String> deleteDevice(@PathVariable Long id) {
         deviceService.deleteDevice(id);
         return ResponseEntity.ok("Deleted successfully");
     }
 
     @PostMapping("/{id}/toggle")
-    public ResponseEntity<String> toggleDevice(@PathVariable java.util.UUID id, @RequestParam boolean isOn) {
+    public ResponseEntity<String> toggleDevice(@PathVariable Long id, @RequestParam boolean isOn) {
         deviceService.toggleDevice(id, isOn);
         return ResponseEntity.ok(isOn ? "Device turned ON" : "Device turned OFF");
     }

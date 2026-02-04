@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalTime;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,14 +36,14 @@ public class ScheduleService {
         return toResponse(saved);
     }
     
-    public List<ScheduleResponse> getSchedulesByDevice(UUID deviceId) {
+    public List<ScheduleResponse> getSchedulesByDevice(Long deviceId) {
         return scheduleRepository.findByDeviceId(deviceId)
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
     
-    public ScheduleResponse updateSchedule(UUID id, ScheduleRequest request) {
+    public ScheduleResponse updateSchedule(Long id, ScheduleRequest request) {
         Schedule schedule = scheduleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Schedule not found"));
         
@@ -68,7 +67,7 @@ public class ScheduleService {
         return toResponse(updated);
     }
     
-    public void deleteSchedule(UUID id) {
+    public void deleteSchedule(Long id) {
         scheduleRepository.deleteById(id);
     }
     

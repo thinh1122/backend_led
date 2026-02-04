@@ -86,7 +86,7 @@ public class DeviceService {
     }
 
     @org.springframework.transaction.annotation.Transactional
-    public void deleteDevice(java.util.UUID deviceId) {
+    public void deleteDevice(Long deviceId) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User không tồn tại!"));
@@ -103,7 +103,7 @@ public class DeviceService {
     }
 
     @org.springframework.transaction.annotation.Transactional
-    public void toggleDevice(java.util.UUID deviceId, boolean isOn) {
+    public void toggleDevice(Long deviceId, boolean isOn) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User không tồn tại!"));

@@ -25,6 +25,9 @@
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
 
+// Voice Control
+#include "voice_control.h"
+
 /* =====================================================
  *                  PIN DEFINITIONS (ESP32-C3)
  * ===================================================== */
@@ -54,7 +57,7 @@
 
 static uint16_t wifi_config_handle;
 static uint8_t ble_addr_type;
-static bool ble_is_connected = false;
+// static bool ble_is_connected = false; // Unused in current implementation
 static uint8_t ble_char_value[256] = {0};
 
 /* =====================================================
@@ -64,7 +67,7 @@ static const char *TAG = "SMART_PLUG";
 
 static bool s_relay_state = false;
 static esp_mqtt_client_handle_t s_mqtt_client = NULL;
-static led_strip_handle_t led_strip;
+// static led_strip_handle_t led_strip; // Unused when USE_RGB_LED = false
 
 /* =====================================================
  *                  HELPER FUNCTIONS
@@ -75,6 +78,7 @@ static esp_err_t save_wifi_credentials(const char *ssid, const char *password);
 
 static void configure_led(void) {
     #if USE_RGB_LED
+        static led_strip_handle_t led_strip;
         led_strip_config_t strip_config = {
             .strip_gpio_num = RGB_GPIO,
             .max_leds = 1,
@@ -89,6 +93,7 @@ static void configure_led(void) {
 
 static void set_led_color(uint8_t r, uint8_t g, uint8_t b) {
     #if USE_RGB_LED
+        static led_strip_handle_t led_strip;
         if (led_strip) {
             led_strip_set_pixel(led_strip, 0, r, g, b);
             led_strip_refresh(led_strip);
@@ -123,9 +128,9 @@ void button_task(void *pvParameters)
     vTaskDelay(pdMS_TO_TICKS(100));
     int last_state = gpio_get_level(BUTTON_GPIO);
     
-    // Các biến cho tính năng Reset bằng cách gạt nhanh 5 lần
-    uint32_t last_toggle_tick = 0;
-    int toggle_count = 0;
+    // Các biến cho tính năng Reset bằng cách gạt nhanh 5 lần (unused for now)
+    // uint32_t last_toggle_tick = 0;
+    // int toggle_count = 0;
 
     ESP_LOGI(TAG, "💡 Toggle Switch mode started on GPIO %d", BUTTON_GPIO);
     
@@ -161,6 +166,7 @@ void button_task(void *pvParameters)
  *                  FUNCTION PROTOTYPES
  * ===================================================== */
 static void mqtt_app_start(void); 
+static void voice_command_handler(voice_command_t cmd); 
 
 /* =====================================================
  *                  MQTT CONFIGURATION (HIVEMQ CLOUD)
@@ -189,11 +195,25 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         set_led_color(0, 50, 0); // Xanh lá: Đã kết nối
         vTaskDelay(pdMS_TO_TICKS(500));
         sync_state_to_mqtt(); // Đồng bộ trạng thái ban đầu
+        
+        // 🎤 Start Voice Control after MQTT connected
+        ESP_LOGI(TAG, "🎤 Starting Voice Control...");
+        if (voice_control_init() == ESP_OK) {
+            voice_set_command_callback(voice_command_handler);
+            voice_control_start();
+            ESP_LOGI(TAG, "✅ Voice Control started successfully");
+        } else {
+            ESP_LOGE(TAG, "❌ Failed to start Voice Control");
+        }
         break;
         
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT Disconnected");
         set_led_color(50, 0, 0); // Đỏ: Mất kết nối
+        
+        // 🎤 Stop Voice Control when MQTT disconnects
+        ESP_LOGI(TAG, "🎤 Stopping Voice Control due to MQTT disconnect...");
+        voice_control_stop();
         break;
         
     case MQTT_EVENT_DATA: {
@@ -280,11 +300,47 @@ static void mqtt_app_start(void) {
             .authentication.password = MQTT_PASSWORD,
         },
         .broker.verification.crt_bundle_attach = esp_crt_bundle_attach,
+        .network.timeout_ms = 10000,           // Network timeout: 10s
+        .network.reconnect_timeout_ms = 5000,  // Reconnect sau 5s nếu mất kết nối
+        .network.refresh_connection_after_ms = 0, // Không force refresh
+        .session.keepalive = 60,               // Keep-alive: 60s (thay vì 120s mặc định)
+        .session.disable_clean_session = false, // Clean session mỗi lần connect
     };
 
     s_mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_register_event(s_mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     esp_mqtt_client_start(s_mqtt_client);
+}
+
+/* =====================================================
+ *                  VOICE CONTROL CALLBACK
+ * ===================================================== */
+static void voice_command_handler(voice_command_t cmd) {
+    switch (cmd) {
+        case VOICE_CMD_TURN_ON:
+            ESP_LOGI(TAG, "🎤 Voice Command: TURN ON");
+            s_relay_state = true;
+            gpio_set_level(RELAY_GPIO, s_relay_state);
+            sync_state_to_mqtt();
+            break;
+            
+        case VOICE_CMD_TURN_OFF:
+            ESP_LOGI(TAG, "🎤 Voice Command: TURN OFF");
+            s_relay_state = false;
+            gpio_set_level(RELAY_GPIO, s_relay_state);
+            sync_state_to_mqtt();
+            break;
+            
+        case VOICE_CMD_TOGGLE:
+            ESP_LOGI(TAG, "🎤 Voice Command: TOGGLE");
+            s_relay_state = !s_relay_state;
+            gpio_set_level(RELAY_GPIO, s_relay_state);
+            sync_state_to_mqtt();
+            break;
+            
+        default:
+            break;
+    }
 }
 
 /* =====================================================

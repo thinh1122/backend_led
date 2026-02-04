@@ -32,7 +32,9 @@ public class SchedulerTaskService {
         int currentDayOfWeek = now.getDayOfWeek().getValue(); // 1=Monday, 7=Sunday
         
         // Chuyển đổi: Java (1=Mon, 7=Sun) -> App (1=Sun, 2=Mon, ..., 7=Sat)
-        int appDayOfWeek = (currentDayOfWeek % 7) + 1;
+        // Java: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun
+        // App:  1=Sun, 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri, 7=Sat
+        int appDayOfWeek = currentDayOfWeek == 7 ? 1 : currentDayOfWeek + 1;
         
         log.debug("⏰ Checking schedules at {} (Day: {})", currentTime, appDayOfWeek);
         

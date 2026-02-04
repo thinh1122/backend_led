@@ -24,7 +24,6 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.38.3'
         channel: 'stable'
         
     - name: Install dependencies
@@ -32,13 +31,13 @@ jobs:
       
     - name: Build APK
       run: flutter build apk --release
-      
-    - name: Upload APK
+        
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: android-apk
         path: build/app/outputs/flutter-apk/app-release.apk
-        retention-days: 30
+        retention-days: 7
 
   build-ios:
     runs-on: macos-latest
@@ -50,15 +49,19 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.38.3'
         channel: 'stable'
         
     - name: Install dependencies
       run: flutter pub get
       
+    - name: Add fake Team ID for unsigned build
+      run: |
+        sed -i '' 's/DEVELOPMENT_TEAM = "";/DEVELOPMENT_TEAM = "FAKETEAM123";/g' ios/Runner.xcodeproj/project.pbxproj
+        sed -i '' 's/CODE_SIGN_IDENTITY = "";/CODE_SIGN_IDENTITY = "-";/g' ios/Runner.xcodeproj/project.pbxproj
+      
     - name: Build iOS (No Codesign)
       run: flutter build ios --release --no-codesign
-      
+        
     - name: Create IPA (unsigned)
       run: |
         cd build/ios/iphoneos
@@ -66,9 +69,9 @@ jobs:
         cp -r Runner.app Payload/
         zip -r app-unsigned.ipa Payload
         
-    - name: Upload IPA
+    - name: Upload IPA artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ios-ipa-unsigned
+        name: ios-app-unsigned
         path: build/ios/iphoneos/app-unsigned.ipa
-        retention-days: 30
+        retention-days: 7

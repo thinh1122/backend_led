@@ -152,7 +152,7 @@ class ApiService {
   }
 
   // ===== SCHEDULE API =====
-  Future<List<Map<String, dynamic>>> getSchedulesByDevice(int deviceId) async {
+  Future<List<Map<String, dynamic>>> getSchedulesByDevice(dynamic deviceId) async {
     try {
       final response = await _dio.get("/schedules/device/$deviceId");
       if (response.statusCode == 200 && response.data is List) {
@@ -165,7 +165,7 @@ class ApiService {
   }
 
   Future<Response> createSchedule({
-    required int deviceId,
+    required dynamic deviceId,
     required String time,
     required String action,
     String? name,

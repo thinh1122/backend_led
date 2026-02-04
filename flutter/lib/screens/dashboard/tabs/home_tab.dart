@@ -215,13 +215,15 @@ class HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
       debugPrint("❌ MQTT Direct Publish Error: $e");
     }
 
-    // 3. Gọi Server để đồng bộ Database
+    // 3. Gọi Server để đồng bộ Database (FIX: xử lý cả int và String)
     try {
-      final String id = device['id'].toString(); 
+      final dynamic deviceIdRaw = device['id'];
+      final String id = deviceIdRaw.toString(); // Convert cả int và String
+      
       _apiService.toggleDevice(id, value).then((_) {
           debugPrint("✅ SYNC: Server confirmed state $value");
       }).catchError((e) {
-          debugPrint("⚠️ SYNC: Server update failed (but device should respond via MQTT)");
+          debugPrint("⚠️ SYNC: Server update failed (but device should respond via MQTT): $e");
       });
     } catch (e) {
       debugPrint("⚠️ General Sync Error: $e");

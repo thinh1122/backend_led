@@ -2,11 +2,9 @@ package com.nguyenducphat.backend_led.dto;
 
 import lombok.Data;
 
-import java.util.UUID;
-
 @Data
 public class ScheduleRequest {
-    private UUID deviceId;
+    private Long deviceId;
     private String time; // Format: "HH:mm" (VD: "07:00")
     private String action; // "ON" hoặc "OFF"
     private Boolean enabled;
