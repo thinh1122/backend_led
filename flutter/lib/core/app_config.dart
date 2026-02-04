@@ -2,7 +2,7 @@
 
 class AppConfig {
   static String get baseUrl {
-    // API Render Cloud (NEW - Updated 2026-02-02)
+    // API Render Cloud (VERIFIED WORKING - Updated 2026-02-04)
     return "https://backend-led-1.onrender.com/api";
     
     // Local Docker Backend (uncomment nếu muốn dùng local)

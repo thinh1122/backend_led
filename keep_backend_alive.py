@@ -7,7 +7,7 @@ import requests
 import time
 from datetime import datetime
 
-BACKEND_URL = "https://backend-led-xaxn.onrender.com/api/auth/login"
+BACKEND_URL = "https://backend-led-1.onrender.com/api/auth/login"
 PING_INTERVAL = 600  # 10 phút (giây)
 
 def ping_backend():

@@ -366,23 +366,48 @@ class _BleProvisioningScreenState extends State<BleProvisioningScreen> {
   Future<void> _fetchRooms() async {
     setState(() => _isLoadingRooms = true);
     try {
+      debugPrint("🏠 Fetching rooms from API...");
       final rooms = await ApiService().getMyRooms();
-      setState(() {
-        _rooms = rooms;
-        _isLoadingRooms = false;
-      });
+      debugPrint("🏠 API returned ${rooms.length} rooms");
+      
+      if (mounted) {
+        setState(() {
+          _rooms = rooms;
+          _isLoadingRooms = false;
+          // Auto-select first room if available
+          if (rooms.isNotEmpty && _selectedRoomId == null) {
+            _selectedRoomId = rooms.first['id'];
+            debugPrint("🏠 Auto-selected first room: ${rooms.first['name']}");
+          }
+        });
+      }
     } catch (e) {
-      debugPrint("Lỗi tải phòng: $e");
-      // Tạm thời tạo phòng test để UI hoạt động
-      setState(() {
-        _rooms = [
-          {'id': '1', 'name': 'Phòng khách'},
-          {'id': '2', 'name': 'Phòng ngủ'},
-          {'id': '3', 'name': 'Sân sau'},
-          {'id': '4', 'name': 'Nhà bếp'},
-        ];
-        _isLoadingRooms = false;
-      });
+      debugPrint("❌ Lỗi tải phòng: $e");
+      
+      if (mounted) {
+        // Show error message to user
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Không thể tải danh sách phòng. Sử dụng phòng mặc định."),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        
+        // Fallback to test rooms
+        setState(() {
+          _rooms = [
+            {'id': '1', 'name': 'Phòng khách'},
+            {'id': '2', 'name': 'Phòng ngủ'},
+            {'id': '3', 'name': 'Sân sau'},
+            {'id': '4', 'name': 'Nhà bếp'},
+          ];
+          _isLoadingRooms = false;
+          // Auto-select first room
+          _selectedRoomId = '1';
+          debugPrint("🏠 Using fallback rooms, auto-selected: Phòng khách");
+        });
+      }
     }
   }
 
@@ -898,13 +923,17 @@ class _BleProvisioningScreenState extends State<BleProvisioningScreen> {
           style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 16),
-        Expanded(
+        
+        // FIX: Remove Expanded, use Container with fixed height
+        Container(
+          height: 200, // Fixed height for proper touch area
           child: GridView.builder(
+            physics: const BouncingScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 2.5,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 2.2, // Better ratio for touch area
             ),
             itemCount: _rooms.length,
             itemBuilder: (context, index) {
@@ -912,11 +941,15 @@ class _BleProvisioningScreenState extends State<BleProvisioningScreen> {
               final isSelected = _selectedRoomId == room['id'];
               
               return Material(
-                color: Colors.transparent,
+                elevation: isSelected ? 8 : 2,
+                borderRadius: BorderRadius.circular(12),
                 child: InkWell(
                   onTap: () {
                     debugPrint("🔘 Room tapped: ${room['name']} (ID: ${room['id']})");
-                    setState(() => _selectedRoomId = room['id']);
+                    setState(() {
+                      _selectedRoomId = room['id'];
+                      debugPrint("🔘 Selected room ID updated to: $_selectedRoomId");
+                    });
                   },
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
@@ -925,10 +958,8 @@ class _BleProvisioningScreenState extends State<BleProvisioningScreen> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSelected ? AppTheme.primaryColor : Colors.grey[300]!,
+                        width: isSelected ? 2 : 1,
                       ),
-                      boxShadow: isSelected ? [
-                        BoxShadow(color: AppTheme.primaryColor.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))
-                      ] : [],
                     ),
                     alignment: Alignment.center,
                     child: Text(
@@ -936,6 +967,7 @@ class _BleProvisioningScreenState extends State<BleProvisioningScreen> {
                       style: GoogleFonts.outfit(
                         color: isSelected ? Colors.white : Colors.black87,
                         fontWeight: FontWeight.w600,
+                        fontSize: 14,
                       ),
                     ),
                   ),
@@ -944,19 +976,52 @@ class _BleProvisioningScreenState extends State<BleProvisioningScreen> {
             },
           ),
         ),
+        
         const SizedBox(height: 24),
+        
+        // Debug info - only show selected room
+        if (_selectedRoomId != null)
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  "Đã chọn: ${_rooms.firstWhere((r) => r['id'] == _selectedRoomId, orElse: () => {'name': 'Unknown'})['name']}",
+                  style: GoogleFonts.outfit(color: Colors.green, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        
         SizedBox(
           width: double.infinity,
           height: 55,
           child: ElevatedButton(
-            onPressed: _selectedRoomId == null ? null : _addDeviceToServer,
+            onPressed: _selectedRoomId == null ? null : () {
+              debugPrint("🚀 HOÀN TẤT button pressed with roomId: $_selectedRoomId");
+              _addDeviceToServer();
+            },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: _selectedRoomId == null ? Colors.grey[300] : AppTheme.primaryColor,
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              elevation: _selectedRoomId == null ? 0 : 4,
             ),
             child: Text(
-              "HOÀN TẤT CÀI ĐẶT",
-              style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+              _selectedRoomId == null ? "CHỌN PHÒNG ĐỂ TIẾP TỤC" : "HOÀN TẤT CÀI ĐẶT",
+              style: GoogleFonts.outfit(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
             ),
           ),
         ),
