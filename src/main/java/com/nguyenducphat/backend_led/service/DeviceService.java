@@ -19,6 +19,7 @@ public class DeviceService {
     private final UserRepository userRepository;
     private final com.nguyenducphat.backend_led.repository.RoomRepository roomRepository;
     private final com.nguyenducphat.backend_led.repository.HouseRepository houseRepository;
+    private final com.nguyenducphat.backend_led.repository.ScheduleRepository scheduleRepository;
     private final com.nguyenducphat.backend_led.mqtt.MqttGateway mqttGateway;
 
     @org.springframework.transaction.annotation.Transactional
@@ -99,6 +100,10 @@ public class DeviceService {
              throw new RuntimeException("Bạn không có quyền xóa thiết bị này!");
         }
 
+        // Xóa tất cả schedules liên quan đến device này trước
+        scheduleRepository.deleteByDeviceId(deviceId);
+        
+        // Sau đó mới xóa device
         deviceRepository.delete(device);
     }
 
