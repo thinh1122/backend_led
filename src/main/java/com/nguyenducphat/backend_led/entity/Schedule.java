@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalTime;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "schedules")
@@ -35,4 +36,6 @@ public class Schedule {
     private String repeatDays = "1,2,3,4,5,6,7"; // Lặp lại theo ngày (1=CN, 2=T2, ..., 7=T7)
     
     private String name; // Tên lịch hẹn (VD: "Bật đèn sáng")
+    
+    private LocalDateTime lastExecutedAt; // Thời điểm execute lần cuối (để tránh spam)
 }

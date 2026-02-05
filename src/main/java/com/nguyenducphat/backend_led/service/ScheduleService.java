@@ -7,6 +7,7 @@ import com.nguyenducphat.backend_led.entity.Schedule;
 import com.nguyenducphat.backend_led.repository.DeviceRepository;
 import com.nguyenducphat.backend_led.repository.ScheduleRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalTime;
@@ -15,10 +16,12 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ScheduleService {
     
     private final ScheduleRepository scheduleRepository;
     private final DeviceRepository deviceRepository;
+    private final MqttService mqttService;
     
     public ScheduleResponse createSchedule(ScheduleRequest request) {
         Device device = deviceRepository.findById(request.getDeviceId())
@@ -33,6 +36,23 @@ public class ScheduleService {
         schedule.setName(request.getName());
         
         Schedule saved = scheduleRepository.save(schedule);
+        
+        // 📅 Gửi thông báo schedule tới ESP32 qua MQTT
+        try {
+            String topic = "smarthome/devices/" + device.getHardwareId() + "/schedule";
+            String payload = String.format(
+                "{\"time\":\"%s\",\"action\":\"%s\",\"repeatDays\":\"%s\",\"name\":\"%s\"}",
+                saved.getTime().toString().substring(0, 5), // HH:mm
+                saved.getAction(),
+                saved.getRepeatDays(),
+                saved.getName() != null ? saved.getName() : "Lịch hẹn"
+            );
+            mqttService.publish(topic, payload);
+            log.info("📅 Schedule notification sent to ESP32: {}", payload);
+        } catch (Exception e) {
+            log.error("Failed to send schedule notification: {}", e.getMessage());
+        }
+        
         return toResponse(saved);
     }
     

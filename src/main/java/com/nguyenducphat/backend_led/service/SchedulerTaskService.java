@@ -24,33 +24,54 @@ public class SchedulerTaskService {
     /**
      * Chạy mỗi phút để kiểm tra lịch hẹn
      * Cron: "0 * * * * *" = Giây 0 của mỗi phút
+     * 
+     * ⚠️ CATCH-UP MECHANISM: Nếu backend bị sleep/restart, sẽ check lịch hẹn
+     * trong 5 phút vừa qua để bù lại lịch bị bỏ lỡ
      */
     @Scheduled(cron = "0 * * * * *")
     public void checkAndExecuteSchedules() {
         LocalDateTime now = LocalDateTime.now();
         LocalTime currentTime = now.toLocalTime();
-        int currentDayOfWeek = now.getDayOfWeek().getValue(); // 1=Monday, 7=Sunday
-        
-        // Chuyển đổi: Java (1=Mon, 7=Sun) -> App (1=Sun, 2=Mon, ..., 7=Sat)
-        // Java: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun
-        // App:  1=Sun, 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri, 7=Sat
+        int currentDayOfWeek = now.getDayOfWeek().getValue();
         int appDayOfWeek = currentDayOfWeek == 7 ? 1 : currentDayOfWeek + 1;
         
         log.debug("⏰ Checking schedules at {} (Day: {})", currentTime, appDayOfWeek);
         
-        // Lấy tất cả lịch hẹn đang bật
         List<Schedule> allSchedules = scheduleRepository.findByEnabled(true);
         
         for (Schedule schedule : allSchedules) {
-            // Kiểm tra thời gian (chỉ so sánh giờ:phút, bỏ giây)
             LocalTime scheduleTime = schedule.getTime();
-            if (scheduleTime.getHour() == currentTime.getHour() && 
-                scheduleTime.getMinute() == currentTime.getMinute()) {
+            
+            // ✅ CHECK 1: Thời gian chính xác (giờ:phút)
+            boolean isExactTime = scheduleTime.getHour() == currentTime.getHour() && 
+                                  scheduleTime.getMinute() == currentTime.getMinute();
+            
+            // 🔄 CHECK 2: CATCH-UP - Lịch hẹn bị bỏ lỡ trong 5 phút vừa qua
+            boolean isMissedRecently = false;
+            LocalDateTime fiveMinutesAgo = now.minusMinutes(5);
+            LocalDateTime scheduleDateTime = now.withHour(scheduleTime.getHour())
+                                                .withMinute(scheduleTime.getMinute())
+                                                .withSecond(0)
+                                                .withNano(0);
+            
+            // Nếu schedule time nằm trong [5 phút trước -> hiện tại]
+            // VÀ chưa execute trong 10 phút gần đây (tránh spam)
+            if (scheduleDateTime.isAfter(fiveMinutesAgo) && 
+                scheduleDateTime.isBefore(now)) {
                 
-                // Kiểm tra ngày lặp lại
-                if (isScheduleActiveToday(schedule.getRepeatDays(), appDayOfWeek)) {
-                    executeSchedule(schedule);
+                // Kiểm tra lastExecutedAt để tránh execute nhiều lần
+                if (schedule.getLastExecutedAt() == null || 
+                    schedule.getLastExecutedAt().isBefore(now.minusMinutes(10))) {
+                    isMissedRecently = true;
+                    log.warn("🔄 CATCH-UP: Found missed schedule '{}' at {} (current: {})", 
+                            schedule.getName(), scheduleTime, currentTime);
                 }
+            }
+            
+            // Execute nếu match thời gian HOẶC bị bỏ lỡ gần đây
+            if ((isExactTime || isMissedRecently) && 
+                isScheduleActiveToday(schedule.getRepeatDays(), appDayOfWeek)) {
+                executeSchedule(schedule);
             }
         }
     }
@@ -83,6 +104,10 @@ public class SchedulerTaskService {
             
             // Gửi lệnh qua MQTT
             mqttService.publish(topic, action);
+            
+            // ✅ Cập nhật lastExecutedAt để tránh execute lại
+            schedule.setLastExecutedAt(LocalDateTime.now());
+            scheduleRepository.save(schedule);
             
             log.info("✅ Schedule executed successfully: {}", schedule.getName());
             
