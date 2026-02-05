@@ -39,25 +39,28 @@ public class SetupController {
         
         try {
             // 1. Tạo user mặc định
-            User user = userRepository.findByUsername("admin").orElse(null);
+            User user = userRepository.findByEmail("admin@smarthome.com").orElse(null);
             if (user == null) {
                 user = new User();
-                user.setUsername("admin");
                 user.setEmail("admin@smarthome.com");
                 user.setPassword(passwordEncoder.encode("admin123"));
+                user.setFullName("Admin User");
                 user = userRepository.save(user);
-                result.put("user", "Created: admin / admin123");
+                result.put("user", "Created: admin@smarthome.com / admin123");
             } else {
-                result.put("user", "Already exists: admin");
+                result.put("user", "Already exists: admin@smarthome.com");
             }
             
             // 2. Tạo nhà mặc định
-            House house = houseRepository.findByUserIdAndName(user.getId(), "Nhà của tôi").orElse(null);
+            House house = houseRepository.findAll().stream()
+                    .filter(h -> h.getOwner().getId().equals(user.getId()) && h.getName().equals("Nhà của tôi"))
+                    .findFirst()
+                    .orElse(null);
             if (house == null) {
                 house = new House();
                 house.setName("Nhà của tôi");
                 house.setAddress("TP. Hồ Chí Minh");
-                house.setUser(user);
+                house.setOwner(user);
                 house = houseRepository.save(house);
                 result.put("house", "Created: Nhà của tôi");
             } else {
@@ -65,7 +68,10 @@ public class SetupController {
             }
             
             // 3. Tạo phòng mặc định
-            Room room = roomRepository.findByHouseIdAndName(house.getId(), "Phòng khách").orElse(null);
+            Room room = roomRepository.findAll().stream()
+                    .filter(r -> r.getHouse().getId().equals(house.getId()) && r.getName().equals("Phòng khách"))
+                    .findFirst()
+                    .orElse(null);
             if (room == null) {
                 room = new Room();
                 room.setName("Phòng khách");
@@ -80,11 +86,11 @@ public class SetupController {
             Device device = deviceRepository.findByHardwareId("thiet_bi_esp32").orElse(null);
             if (device == null) {
                 device = new Device();
-                device.setDeviceId("thiet_bi_esp32");
                 device.setHardwareId("thiet_bi_esp32");
                 device.setName("Thiết bị ESP32");
                 device.setType("RELAY");
-                device.setState(false);
+                device.setOn(false);
+                device.setCamera(false);
                 device.setRoom(room);
                 device = deviceRepository.save(device);
                 result.put("device", "Created: Thiết bị ESP32 (ID: thiet_bi_esp32)");
@@ -94,7 +100,7 @@ public class SetupController {
             
             result.put("success", true);
             result.put("message", "✅ Default data created successfully!");
-            result.put("login", Map.of("username", "admin", "password", "admin123"));
+            result.put("login", Map.of("email", "admin@smarthome.com", "password", "admin123"));
             
             return ResponseEntity.ok(result);
             
