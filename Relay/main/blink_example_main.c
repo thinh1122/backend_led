@@ -67,6 +67,8 @@ static const char *TAG = "SMART_PLUG";
 
 static bool s_relay_state = false;
 static esp_mqtt_client_handle_t s_mqtt_client = NULL;
+static bool s_wifi_connected = false;
+static uint32_t s_ip_wait_start_time = 0;
 // static led_strip_handle_t led_strip; // Unused when USE_RGB_LED = false
 
 /* =====================================================
@@ -158,15 +160,16 @@ void button_task(void *pvParameters)
  *                  TEST MODE CONFIG (QUAN TRỌNG)
  *  Điền WiFi nhà bạn vào đây để test MQTT không cần App
  * ===================================================== */
-#define TEST_WIFI_SSID    "OPPO"               // <--- WiFi OPPO
-#define TEST_WIFI_PASS    "12121212"           // <--- Mật khẩu OPPO
-#define FORCE_TEST_MODE   false                // TẮT test mode - Dùng app để cấu hình WiFi
+#define TEST_WIFI_SSID    "Phoenix Coffer_trong"  // <--- WiFi Phoenix Coffer
+#define TEST_WIFI_PASS    "79797979"              // <--- Mật khẩu
+#define FORCE_TEST_MODE   true                    // BẬT test mode - Dùng WiFi hardcode
 
 /* =====================================================
  *                  FUNCTION PROTOTYPES
  * ===================================================== */
 static void mqtt_app_start(void); 
-static void voice_command_handler(voice_command_t cmd); 
+static void voice_command_handler(voice_command_t cmd);
+void ip_check_task(void *pvParameters); 
 
 /* =====================================================
  *                  MQTT CONFIGURATION (HIVEMQ CLOUD)
@@ -196,15 +199,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         vTaskDelay(pdMS_TO_TICKS(500));
         sync_state_to_mqtt(); // Đồng bộ trạng thái ban đầu
         
-        // 🎤 Start Voice Control after MQTT connected
+        // 🎤 Start Voice Control after MQTT connected (no init, just start)
         ESP_LOGI(TAG, "🎤 Starting Voice Control...");
-        if (voice_control_init() == ESP_OK) {
-            voice_set_command_callback(voice_command_handler);
-            voice_control_start();
-            ESP_LOGI(TAG, "✅ Voice Control started successfully");
-        } else {
-            ESP_LOGE(TAG, "❌ Failed to start Voice Control");
-        }
+        voice_control_start();
         break;
         
     case MQTT_EVENT_DISCONNECTED:
@@ -340,6 +337,38 @@ static void voice_command_handler(voice_command_t cmd) {
             
         default:
             break;
+    }
+}
+
+/* =====================================================
+ *                  IP CHECK TASK (DHCP TIMEOUT)
+ * ===================================================== */
+void ip_check_task(void *pvParameters) {
+    const uint32_t IP_TIMEOUT_MS = 30000; // 30 giây timeout
+    
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(5000)); // Check mỗi 5 giây
+        
+        if (s_wifi_connected && s_ip_wait_start_time > 0) {
+            uint32_t elapsed = (xTaskGetTickCount() - s_ip_wait_start_time) * portTICK_PERIOD_MS;
+            
+            if (elapsed > IP_TIMEOUT_MS) {
+                ESP_LOGW(TAG, "⚠️ DHCP TIMEOUT! Đã chờ %lu ms nhưng chưa nhận được IP", elapsed);
+                ESP_LOGW(TAG, "💡 Có thể router DHCP chậm hoặc có vấn đề");
+                ESP_LOGW(TAG, "🔄 Thử disconnect và reconnect WiFi...");
+                
+                // Disconnect và reconnect
+                esp_wifi_disconnect();
+                vTaskDelay(pdMS_TO_TICKS(2000));
+                esp_wifi_connect();
+                s_ip_wait_start_time = xTaskGetTickCount();
+            } else {
+                // Log progress mỗi 10 giây
+                if (elapsed % 10000 < 5000) {
+                    ESP_LOGI(TAG, "⏳ Đang chờ IP... (%lu/%lu giây)", elapsed/1000, IP_TIMEOUT_MS/1000);
+                }
+            }
+        }
     }
 }
 
@@ -606,6 +635,8 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
         ESP_LOGI(TAG, "   Channel: %d", event->channel);
         ESP_LOGI(TAG, "   Auth Mode: %d", event->authmode);
         ESP_LOGI(TAG, "⏳ Waiting for IP address...");
+        s_wifi_connected = true;
+        s_ip_wait_start_time = xTaskGetTickCount();
         set_led_color(0, 255, 255); // Cyan: Đã kết nối WiFi, chờ IP
     }
     else if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
@@ -613,6 +644,8 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
         ESP_LOGW(TAG, "❌ WiFi Disconnected!");
         ESP_LOGW(TAG, "   SSID: %s", event->ssid);
         ESP_LOGW(TAG, "   Reason Code: %d", event->reason);
+        s_wifi_connected = false;
+        s_ip_wait_start_time = 0;
         
         // Giải thích mã lỗi phổ biến
         switch(event->reason) {
@@ -646,11 +679,23 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
     } 
     else if (event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
-        ESP_LOGI(TAG, "🌐 IP Address Obtained!");
+        uint32_t wait_time = (xTaskGetTickCount() - s_ip_wait_start_time) * portTICK_PERIOD_MS / 1000;
+        ESP_LOGI(TAG, "🌐 IP Address Obtained! (Waited %lu seconds)", wait_time);
         ESP_LOGI(TAG, "   IP: " IPSTR, IP2STR(&event->ip_info.ip));
         ESP_LOGI(TAG, "   Netmask: " IPSTR, IP2STR(&event->ip_info.netmask));
         ESP_LOGI(TAG, "   Gateway: " IPSTR, IP2STR(&event->ip_info.gw));
+        
+        // 🎤 Initialize Voice Control once after WiFi connected
+        ESP_LOGI(TAG, "🎤 Initializing Voice Control...");
+        if (voice_control_init() == ESP_OK) {
+            voice_set_command_callback(voice_command_handler);
+            ESP_LOGI(TAG, "✅ Voice Control initialized successfully");
+        } else {
+            ESP_LOGE(TAG, "❌ Failed to initialize Voice Control");
+        }
+        
         ESP_LOGI(TAG, "🚀 Starting MQTT connection...");
+        s_wifi_connected = false; // Reset flag
         set_led_color(0, 50, 255); // Xanh dương: Đã có IP, đang kết nối MQTT
         mqtt_app_start();
     }
@@ -720,6 +765,17 @@ void app_main(void) {
         wifi_config_t wifi_config = {0};
         strcpy((char*)wifi_config.sta.ssid, ssid);
         strcpy((char*)wifi_config.sta.password, pass);
+        
+        // Force WPA2-PSK authentication (không dùng WPA3)
+        wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+        wifi_config.sta.pmf_cfg.capable = false; // Disable PMF (WPA3 feature)
+        wifi_config.sta.pmf_cfg.required = false;
+        
+        ESP_LOGI(TAG, "🔧 WiFi Config:");
+        ESP_LOGI(TAG, "   SSID: %s", ssid);
+        ESP_LOGI(TAG, "   Auth Mode: WPA2-PSK (forced)");
+        ESP_LOGI(TAG, "   PMF: Disabled (WPA3 disabled)");
+        
         esp_wifi_set_mode(WIFI_MODE_STA);
         esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
         esp_wifi_start();
@@ -739,4 +795,5 @@ void app_main(void) {
     // 3. Start Tasks
     xTaskCreate(button_task, "button_task", 4096, NULL, 10, NULL);
     xTaskCreate(acs712_task, "acs712_task", 4096, NULL, 5, NULL);
+    xTaskCreate(ip_check_task, "ip_check_task", 3072, NULL, 3, NULL);
 }

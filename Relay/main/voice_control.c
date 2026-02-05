@@ -13,6 +13,11 @@ static TaskHandle_t voice_task_handle = NULL;
 static bool voice_active = false;
 static void (*command_callback)(voice_command_t) = NULL;
 
+// Debouncing variables to prevent command spam
+static uint32_t last_command_time = 0;
+static voice_command_t last_command = VOICE_CMD_NONE;
+static const uint32_t COMMAND_DEBOUNCE_MS = 2000; // 2 seconds between same commands
+
 /* =====================================================
  *                  VOICE DETECTION LOGIC
  * ===================================================== */
@@ -27,8 +32,8 @@ static bool detect_voice_activity(int16_t* audio_data, size_t samples) {
     }
     energy = energy / samples;
     
-    // Threshold for voice detection (adjust based on environment)
-    const float VOICE_THRESHOLD = 1000000.0f;
+    // Voice activity threshold (energy). Lower value = nhạy hơn
+    const float VOICE_THRESHOLD = 2000000.0f; // Giảm từ 5_000_000.0 xuống 2_000_000.0
     return energy > VOICE_THRESHOLD;
 }
 
@@ -48,16 +53,18 @@ static voice_command_t detect_voice_command(int16_t* audio_data, size_t samples)
     
     float zcr = (float)zero_crossings / samples;
     
-    // Simple heuristic based on zero crossing rate
-    // "Bật" (high frequency) vs "Tắt" (low frequency)
-    if (zcr > 0.1f) {
+    // More restrictive ZCR thresholds to reduce false positives
+    // "Bật" typically has ZCR 0.15-0.35, "Tắt" has ZCR 0.05-0.15
+    if (zcr >= 0.15f && zcr <= 0.35f) {
         ESP_LOGI(TAG, "🎤 Detected: TURN ON command (ZCR: %.3f)", zcr);
         return VOICE_CMD_TURN_ON;
-    } else if (zcr > 0.05f) {
+    } else if (zcr >= 0.05f && zcr < 0.15f) {
         ESP_LOGI(TAG, "🎤 Detected: TURN OFF command (ZCR: %.3f)", zcr);
         return VOICE_CMD_TURN_OFF;
     }
     
+    // Log unrecognized patterns for debugging
+    ESP_LOGD(TAG, "🎤 Unrecognized voice pattern (ZCR: %.3f)", zcr);
     return VOICE_CMD_NONE;
 }
 
@@ -92,8 +99,18 @@ static void voice_task(void *pvParameters) {
                 
                 // Try to detect command
                 voice_command_t cmd = detect_voice_command(audio_buffer, samples);
-                if (cmd != VOICE_CMD_NONE && command_callback) {
-                    command_callback(cmd);
+                if (cmd != VOICE_CMD_NONE) {
+                    // Debouncing: prevent same command spam
+                    uint32_t current_time = xTaskGetTickCount() * portTICK_PERIOD_MS;
+                    if (cmd != last_command || (current_time - last_command_time) > COMMAND_DEBOUNCE_MS) {
+                        if (command_callback) {
+                            command_callback(cmd);
+                        }
+                        last_command = cmd;
+                        last_command_time = current_time;
+                    } else {
+                        ESP_LOGD(TAG, "🎤 Command ignored (debouncing)");
+                    }
                 }
             }
         }
@@ -113,8 +130,8 @@ static void voice_task(void *pvParameters) {
 esp_err_t voice_control_init(void) {
     ESP_LOGI(TAG, "🎤 Initializing I2S microphone...");
     
-    // I2S channel configuration
-    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_AUTO, I2S_ROLE_MASTER);
+    // I2S channel configuration - use specific I2S port
+    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
     esp_err_t ret = i2s_new_channel(&chan_cfg, NULL, &rx_handle);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to create I2S channel: %s", esp_err_to_name(ret));
@@ -182,9 +199,18 @@ void voice_control_stop(void) {
     
     voice_active = false;
     
+    // Stop task first
     if (voice_task_handle) {
         vTaskDelete(voice_task_handle);
         voice_task_handle = NULL;
+    }
+    
+    // Cleanup I2S channel
+    if (rx_handle) {
+        i2s_channel_disable(rx_handle);
+        i2s_del_channel(rx_handle);
+        rx_handle = NULL;
+        ESP_LOGI(TAG, "🎤 I2S channel cleaned up");
     }
     
     ESP_LOGI(TAG, "🎤 Voice control stopped");
