@@ -66,7 +66,6 @@ public class MqttConfig {
         adapter.setQos(1);
         adapter.setOutputChannel(mqttInboundChannel());
         adapter.setAutoStartup(true); // Auto-connect on startup
-        adapter.setRecoveryInterval(10000); // Retry every 10s if connection fails
         return adapter;
     }
 }
