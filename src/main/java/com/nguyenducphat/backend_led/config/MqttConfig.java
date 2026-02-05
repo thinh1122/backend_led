@@ -65,6 +65,8 @@ public class MqttConfig {
         adapter.setConverter(new org.springframework.integration.mqtt.support.DefaultPahoMessageConverter());
         adapter.setQos(1);
         adapter.setOutputChannel(mqttInboundChannel());
+        adapter.setAutoStartup(true); // Auto-connect on startup
+        adapter.setRecoveryInterval(10000); // Retry every 10s if connection fails
         return adapter;
     }
 }
