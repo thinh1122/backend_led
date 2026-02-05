@@ -51,31 +51,35 @@ public class SetupController {
                 result.put("user", "Already exists: admin@smarthome.com");
             }
             
+            final User finalUser = user; // Make effectively final for lambda
+            
             // 2. Tạo nhà mặc định
             House house = houseRepository.findAll().stream()
-                    .filter(h -> h.getOwner().getId().equals(user.getId()) && h.getName().equals("Nhà của tôi"))
+                    .filter(h -> h.getOwner().getId().equals(finalUser.getId()) && h.getName().equals("Nhà của tôi"))
                     .findFirst()
                     .orElse(null);
             if (house == null) {
                 house = new House();
                 house.setName("Nhà của tôi");
                 house.setAddress("TP. Hồ Chí Minh");
-                house.setOwner(user);
+                house.setOwner(finalUser);
                 house = houseRepository.save(house);
                 result.put("house", "Created: Nhà của tôi");
             } else {
                 result.put("house", "Already exists: Nhà của tôi");
             }
             
+            final House finalHouse = house; // Make effectively final for lambda
+            
             // 3. Tạo phòng mặc định
             Room room = roomRepository.findAll().stream()
-                    .filter(r -> r.getHouse().getId().equals(house.getId()) && r.getName().equals("Phòng khách"))
+                    .filter(r -> r.getHouse().getId().equals(finalHouse.getId()) && r.getName().equals("Phòng khách"))
                     .findFirst()
                     .orElse(null);
             if (room == null) {
                 room = new Room();
                 room.setName("Phòng khách");
-                room.setHouse(house);
+                room.setHouse(finalHouse);
                 room = roomRepository.save(room);
                 result.put("room", "Created: Phòng khách");
             } else {
