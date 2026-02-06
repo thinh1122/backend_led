@@ -4,10 +4,18 @@
 .idea/
 *.swp
 *.log
+*.iws
+*.iml
+*.ipr
 
 # --- Java (Spring Boot - backend_led) ---
+HELP.md
 **/target/
+target/
 **/.mvn/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
 **/mvnw
 **/mvnw.cmd
 core
@@ -16,10 +24,29 @@ core
 *.war
 *.ear
 
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
 # --- Node/Web (dashboard_web) ---
 **/node_modules/
 **/dist/
 **/build/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
 .env
 .env.local
 .env.development.local
@@ -35,7 +62,6 @@ yarn-error.log*
 **/mosquitto/log/
 
 # --- ESP32 / IoT (Relay, iot_project) ---
-**/build/
 **/sdkconfig
 **/managed_components/
 **/dependencies.lock

@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: backend-led
+    runtime: docker
+    region: singapore
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: backend-led-db
+          property: connectionString
+      - key: MQTT_BROKER
+        value: ssl://cff511b394b84e8e9bba66c541c0fde3.s1.eu.hivemq.cloud:8883
+      - key: MQTT_USERNAME
+        value: smarthome
+      - key: MQTT_PASSWORD
+        value: Smarthome123
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+
+databases:
+  - name: backend-led-db
+    databaseName: backend_led
+    user: backend_user
+    region: singapore
+    plan: free
