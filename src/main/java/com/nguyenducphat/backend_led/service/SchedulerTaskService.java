@@ -35,12 +35,29 @@ public class SchedulerTaskService {
         int currentDayOfWeek = now.getDayOfWeek().getValue();
         int appDayOfWeek = currentDayOfWeek == 7 ? 1 : currentDayOfWeek + 1;
         
-        log.debug("⏰ Checking schedules at {} (Day: {})", currentTime, appDayOfWeek);
+        // ⏰ LOG: Thời gian hiện tại
+        log.info("⏰ ========== SCHEDULER CHECK: {} ({})==========", 
+                currentTime.toString().substring(0, 5), 
+                getDayName(appDayOfWeek));
         
         List<Schedule> allSchedules = scheduleRepository.findByEnabled(true);
         
+        if (allSchedules.isEmpty()) {
+            log.info("📋 No active schedules found.");
+            return;
+        }
+        
+        log.info("📋 Total active schedules: {}", allSchedules.size());
+        
+        // Tìm lịch hẹn gần nhất
+        Schedule nextSchedule = null;
+        long minMinutesUntilNext = Long.MAX_VALUE;
+        
         for (Schedule schedule : allSchedules) {
             LocalTime scheduleTime = schedule.getTime();
+            
+            // Tính thời gian còn lại đến lịch hẹn này
+            long minutesUntil = calculateMinutesUntil(currentTime, scheduleTime);
             
             // ✅ CHECK 1: Thời gian chính xác (giờ:phút)
             boolean isExactTime = scheduleTime.getHour() == currentTime.getHour() && 
@@ -72,7 +89,59 @@ public class SchedulerTaskService {
             if ((isExactTime || isMissedRecently) && 
                 isScheduleActiveToday(schedule.getRepeatDays(), appDayOfWeek)) {
                 executeSchedule(schedule);
+            } else {
+                // Track lịch hẹn gần nhất
+                if (isScheduleActiveToday(schedule.getRepeatDays(), appDayOfWeek) && 
+                    minutesUntil > 0 && minutesUntil < minMinutesUntilNext) {
+                    nextSchedule = schedule;
+                    minMinutesUntilNext = minutesUntil;
+                }
             }
+        }
+        
+        // ⏳ LOG: Countdown đến lịch hẹn tiếp theo
+        if (nextSchedule != null) {
+            long hours = minMinutesUntilNext / 60;
+            long minutes = minMinutesUntilNext % 60;
+            log.info("⏳ Next schedule: '{}' at {} (in {}h {}m)", 
+                    nextSchedule.getName(), 
+                    nextSchedule.getTime().toString().substring(0, 5),
+                    hours, minutes);
+        } else {
+            log.info("⏳ No upcoming schedules today.");
+        }
+        
+        log.info("=".repeat(60));
+    }
+    
+    /**
+     * Tính số phút từ hiện tại đến thời gian hẹn
+     */
+    private long calculateMinutesUntil(LocalTime current, LocalTime target) {
+        int currentMinutes = current.getHour() * 60 + current.getMinute();
+        int targetMinutes = target.getHour() * 60 + target.getMinute();
+        
+        if (targetMinutes > currentMinutes) {
+            return targetMinutes - currentMinutes;
+        } else {
+            // Lịch hẹn vào ngày mai
+            return (24 * 60 - currentMinutes) + targetMinutes;
+        }
+    }
+    
+    /**
+     * Lấy tên ngày trong tuần
+     */
+    private String getDayName(int day) {
+        switch (day) {
+            case 1: return "Sunday";
+            case 2: return "Monday";
+            case 3: return "Tuesday";
+            case 4: return "Wednesday";
+            case 5: return "Thursday";
+            case 6: return "Friday";
+            case 7: return "Saturday";
+            default: return "Unknown";
         }
     }
     
