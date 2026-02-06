@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 
@@ -30,13 +31,15 @@ public class SchedulerTaskService {
      */
     @Scheduled(cron = "0 * * * * *")
     public void checkAndExecuteSchedules() {
-        LocalDateTime now = LocalDateTime.now();
+        // ✅ FIX: Sử dụng múi giờ Việt Nam (GMT+7) thay vì giờ Server (UTC)
+        ZoneId zoneId = ZoneId.of("Asia/Ho_Chi_Minh");
+        LocalDateTime now = LocalDateTime.now(zoneId);
         LocalTime currentTime = now.toLocalTime();
         int currentDayOfWeek = now.getDayOfWeek().getValue();
         int appDayOfWeek = currentDayOfWeek == 7 ? 1 : currentDayOfWeek + 1;
         
-        // ⏰ LOG: Thời gian hiện tại
-        log.info("⏰ ========== SCHEDULER CHECK: {} ({})==========", 
+        // ⏰ LOG: Thời gian hiện tại (kèm timezone)
+        log.info("⏰ ========== SCHEDULER CHECK: {} ({}) [GMT+7] ==========", 
                 currentTime.toString().substring(0, 5), 
                 getDayName(appDayOfWeek));
         
