@@ -7,6 +7,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:wifi_scan/wifi_scan.dart';
 import 'package:iot_project/theme.dart';
 import 'package:iot_project/services/api_service.dart';
+import 'package:iot_project/screens/dashboard/home_screen.dart';
 
 class BleProvisioningScreen extends StatefulWidget {
   final String deviceName;
@@ -529,7 +530,12 @@ class _BleProvisioningScreenState extends State<BleProvisioningScreen> {
                   height: 55,
                   child: ElevatedButton(
                     onPressed: () {
-                      Navigator.pop(context, true); // Quay về và refresh
+                      // Về hẳn trang chủ thay vì quay lại màn Bluetooth
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => const HomeScreen()),
+                        (route) => false,
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,

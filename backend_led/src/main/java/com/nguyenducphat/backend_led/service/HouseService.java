@@ -57,6 +57,33 @@ public class HouseService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public HouseResponse.RoomResponse addRoom(Long houseId, com.nguyenducphat.backend_led.dto.RoomRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại!"));
+
+        House house = houseRepository.findById(houseId)
+                .orElseThrow(() -> new RuntimeException("House không tồn tại!"));
+
+        if (!house.getOwner().getId().equals(user.getId())) {
+            throw new RuntimeException("Không có quyền truy cập house này!");
+        }
+
+        Room room = Room.builder()
+                .name(request.getName())
+                .house(house)
+                .build();
+
+        house.getRooms().add(room);
+        houseRepository.save(house);
+
+        return HouseResponse.RoomResponse.builder()
+                .id(room.getId())
+                .name(room.getName())
+                .build();
+    }
+
     private HouseResponse mapToResponse(House house) {
         return HouseResponse.builder()
                 .id(house.getId())

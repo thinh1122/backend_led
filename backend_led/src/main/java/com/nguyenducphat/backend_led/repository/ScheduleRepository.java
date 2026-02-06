@@ -11,4 +11,7 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     List<Schedule> findByDeviceId(Long deviceId);
     List<Schedule> findByDeviceIdAndEnabled(Long deviceId, Boolean enabled);
     List<Schedule> findByEnabled(Boolean enabled);
+    
+    // Method để xóa tất cả schedules của một device
+    void deleteByDeviceId(Long deviceId);
 }

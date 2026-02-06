@@ -390,71 +390,83 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> with SingleTick
     final action = schedule['action'] ?? 'ON';
     final enabled = schedule['enabled'] ?? true;
     final name = schedule['name'] ?? 'Lịch hẹn';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: enabled ? AppTheme.primaryColor.withOpacity(0.3) : Colors.grey[300]!,
-        ),
-      ),
-      child: Row(
-        children: [
-          // Icon
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: (action == 'ON' ? Colors.green : Colors.red).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              action == 'ON' ? Icons.power_settings_new : Icons.power_off,
-              color: action == 'ON' ? Colors.green : Colors.red,
-            ),
+    return GestureDetector(
+      onTap: () => _showEditScheduleDialog(schedule),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(
+            color: enabled ? AppTheme.primaryColor.withOpacity(0.3) : Colors.grey[300]!,
           ),
-          const SizedBox(width: 16),
-          
-          // Thông tin
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        child: Row(
+          children: [
+            // Icon
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: (action == 'ON' ? Colors.green : Colors.red).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                action == 'ON' ? Icons.power_settings_new : Icons.power_off,
+                color: action == 'ON' ? Colors.green : Colors.red,
+              ),
+            ),
+            const SizedBox(width: 16),
+            
+            // Thông tin
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$time - ${action == 'ON' ? 'Bật' : 'Tắt'}',
+                    style: GoogleFonts.outfit(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Bật/Tắt & Xóa
+            Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  name,
-                  style: GoogleFonts.outfit(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                Switch(
+                  value: enabled,
+                  onChanged: (value) => _toggleSchedule(schedule['id'], value),
+                  activeColor: AppTheme.primaryColor,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '$time - ${action == 'ON' ? 'Bật' : 'Tắt'}',
-                  style: GoogleFonts.outfit(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  tooltip: 'Xóa lịch hẹn',
+                  onPressed: () => _confirmDeleteSchedule(schedule['id']),
                 ),
               ],
             ),
-          ),
-          
-          // Switch
-          Switch(
-            value: enabled,
-            onChanged: (value) => _toggleSchedule(schedule['id'], value),
-            activeColor: AppTheme.primaryColor,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Future<void> _showAddScheduleDialog() async {
-    TimeOfDay? selectedTime = TimeOfDay.now();
+    TimeOfDay selectedTime = TimeOfDay.now();
     String selectedAction = 'ON';
     String scheduleName = '';
 
@@ -480,11 +492,11 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> with SingleTick
               // Chọn giờ
               ListTile(
                 leading: const Icon(Icons.access_time),
-                title: Text('Giờ: ${selectedTime?.format(context)}'),
+                title: Text('Giờ: ${selectedTime.format(context)}'),
                 onTap: () async {
                   final time = await showTimePicker(
                     context: context,
-                    initialTime: selectedTime!,
+                    initialTime: selectedTime,
                   );
                   if (time != null) {
                     setDialogState(() => selectedTime = time);
@@ -519,9 +531,9 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> with SingleTick
             ElevatedButton(
               onPressed: () async {
                 if (scheduleName.isEmpty) {
-                  scheduleName = '${selectedAction == 'ON' ? 'Bật' : 'Tắt'} lúc ${selectedTime?.format(context)}';
+                  scheduleName = '${selectedAction == 'ON' ? 'Bật' : 'Tắt'} lúc ${selectedTime.format(context)}';
                 }
-                await _createSchedule(selectedTime!, selectedAction, scheduleName);
+                await _createSchedule(selectedTime, selectedAction, scheduleName);
                 if (mounted) Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(
@@ -529,6 +541,110 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> with SingleTick
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: Text('Thêm', style: GoogleFonts.outfit(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showEditScheduleDialog(Map<String, dynamic> schedule) async {
+    // Parse time "HH:mm" từ backend
+    final String rawTime = schedule['time'] ?? '00:00';
+    TimeOfDay selectedTime = TimeOfDay.now(); // Default value
+    
+    try {
+      final parts = rawTime.split(':');
+      if (parts.length >= 2) {
+        selectedTime = TimeOfDay(
+          hour: int.parse(parts[0]),
+          minute: int.parse(parts[1]),
+        );
+      }
+    } catch (_) {
+      selectedTime = TimeOfDay.now();
+    }
+
+    String selectedAction = schedule['action'] ?? 'ON';
+    String scheduleName = schedule['name'] ?? '';
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Sửa lịch hẹn', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Tên lịch hẹn
+              TextField(
+                controller: TextEditingController(text: scheduleName),
+                decoration: InputDecoration(
+                  labelText: 'Tên lịch hẹn',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onChanged: (value) => scheduleName = value,
+              ),
+              const SizedBox(height: 16),
+              
+              // Chọn giờ
+              ListTile(
+                leading: const Icon(Icons.access_time),
+                title: Text('Giờ: ${selectedTime.format(context)}'),
+                onTap: () async {
+                  final time = await showTimePicker(
+                    context: context,
+                    initialTime: selectedTime,
+                  );
+                  if (time != null) {
+                    setDialogState(() => selectedTime = time);
+                  }
+                },
+              ),
+              
+              // Chọn hành động
+              ListTile(
+                leading: const Icon(Icons.power_settings_new),
+                title: const Text('Hành động'),
+                trailing: DropdownButton<String>(
+                  value: selectedAction,
+                  items: const [
+                    DropdownMenuItem(value: 'ON', child: Text('Bật')),
+                    DropdownMenuItem(value: 'OFF', child: Text('Tắt')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => selectedAction = value);
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Hủy', style: GoogleFonts.outfit(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (scheduleName.isEmpty) {
+                  scheduleName = '${selectedAction == 'ON' ? 'Bật' : 'Tắt'} lúc ${selectedTime.format(context)}';
+                }
+                await _updateSchedule(
+                  schedule['id'] as int,
+                  selectedTime,
+                  selectedAction,
+                  scheduleName,
+                );
+                if (mounted) Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text('Lưu', style: GoogleFonts.outfit(color: Colors.white)),
             ),
           ],
         ),
@@ -578,10 +694,85 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> with SingleTick
     }
   }
 
+  Future<void> _updateSchedule(int scheduleId, TimeOfDay time, String action, String name) async {
+    try {
+      final timeString = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+
+      await _apiService.updateSchedule(
+        scheduleId,
+        time: timeString,
+        action: action,
+        name: name,
+      );
+      await _loadSchedules();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã cập nhật lịch hẹn')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _toggleSchedule(int scheduleId, bool enabled) async {
     try {
       await _apiService.updateSchedule(scheduleId, enabled: enabled);
       await _loadSchedules();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteSchedule(int scheduleId) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Xóa lịch hẹn', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        content: Text(
+          'Bạn có chắc muốn xóa lịch hẹn này?',
+          style: GoogleFonts.outfit(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Hủy', style: GoogleFonts.outfit(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('Xóa', style: GoogleFonts.outfit(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete == true) {
+      await _deleteSchedule(scheduleId);
+    }
+  }
+
+  Future<void> _deleteSchedule(int scheduleId) async {
+    try {
+      await _apiService.deleteSchedule(scheduleId);
+      await _loadSchedules();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã xóa lịch hẹn')),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

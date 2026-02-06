@@ -2,6 +2,7 @@ package com.nguyenducphat.backend_led.controller;
 
 import com.nguyenducphat.backend_led.dto.HouseRequest;
 import com.nguyenducphat.backend_led.dto.HouseResponse;
+import com.nguyenducphat.backend_led.dto.RoomRequest;
 import com.nguyenducphat.backend_led.service.HouseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -23,5 +24,12 @@ public class HouseController {
     @GetMapping
     public ResponseEntity<List<HouseResponse>> getMyHouses() {
         return ResponseEntity.ok(houseService.getMyHouses());
+    }
+
+    @PostMapping("/{houseId}/rooms")
+    public ResponseEntity<HouseResponse.RoomResponse> addRoom(
+            @PathVariable Long houseId,
+            @RequestBody RoomRequest request) {
+        return ResponseEntity.ok(houseService.addRoom(houseId, request));
     }
 }
