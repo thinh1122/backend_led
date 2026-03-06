@@ -25,9 +25,6 @@ public class SchedulerTaskService {
     /**
      * Chạy mỗi phút để kiểm tra lịch hẹn
      * Cron: "0 * * * * *" = Giây 0 của mỗi phút
-     * 
-     * ⚠️ CATCH-UP MECHANISM: Nếu backend bị sleep/restart, sẽ check lịch hẹn
-     * trong 5 phút vừa qua để bù lại lịch bị bỏ lỡ
      */
     @Scheduled(cron = "0 * * * * *")
     public void checkAndExecuteSchedules() {
@@ -35,116 +32,29 @@ public class SchedulerTaskService {
         ZoneId zoneId = ZoneId.of("Asia/Ho_Chi_Minh");
         LocalDateTime now = LocalDateTime.now(zoneId);
         LocalTime currentTime = now.toLocalTime();
-        int currentDayOfWeek = now.getDayOfWeek().getValue();
+        int currentDayOfWeek = now.getDayOfWeek().getValue(); // 1=Monday, 7=Sunday
+        
+        // Chuyển đổi: Java (1=Mon, 7=Sun) -> App (1=Sun, 2=Mon, ..., 7=Sat)
+        // Java: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun
+        // App:  1=Sun, 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri, 7=Sat
         int appDayOfWeek = currentDayOfWeek == 7 ? 1 : currentDayOfWeek + 1;
         
-        // ⏰ LOG: Thời gian hiện tại (kèm timezone)
-        log.info("⏰ ========== SCHEDULER CHECK: {} ({}) [GMT+7] ==========", 
-                currentTime.toString().substring(0, 5), 
-                getDayName(appDayOfWeek));
+        log.debug("⏰ Checking schedules at {} (Day: {})", currentTime, appDayOfWeek);
         
+        // Lấy tất cả lịch hẹn đang bật
         List<Schedule> allSchedules = scheduleRepository.findByEnabled(true);
         
-        if (allSchedules.isEmpty()) {
-            log.info("📋 No active schedules found.");
-            return;
-        }
-        
-        log.info("📋 Total active schedules: {}", allSchedules.size());
-        
-        // Tìm lịch hẹn gần nhất
-        Schedule nextSchedule = null;
-        long minMinutesUntilNext = Long.MAX_VALUE;
-        
         for (Schedule schedule : allSchedules) {
+            // Kiểm tra thời gian (chỉ so sánh giờ:phút, bỏ giây)
             LocalTime scheduleTime = schedule.getTime();
-            
-            // Tính thời gian còn lại đến lịch hẹn này
-            long minutesUntil = calculateMinutesUntil(currentTime, scheduleTime);
-            
-            // ✅ CHECK 1: Thời gian chính xác (giờ:phút)
-            boolean isExactTime = scheduleTime.getHour() == currentTime.getHour() && 
-                                  scheduleTime.getMinute() == currentTime.getMinute();
-            
-            // 🔄 CHECK 2: CATCH-UP - Lịch hẹn bị bỏ lỡ trong 5 phút vừa qua
-            boolean isMissedRecently = false;
-            LocalDateTime fiveMinutesAgo = now.minusMinutes(5);
-            LocalDateTime scheduleDateTime = now.withHour(scheduleTime.getHour())
-                                                .withMinute(scheduleTime.getMinute())
-                                                .withSecond(0)
-                                                .withNano(0);
-            
-            // Nếu schedule time nằm trong [5 phút trước -> hiện tại]
-            // VÀ chưa execute trong 10 phút gần đây (tránh spam)
-            if (scheduleDateTime.isAfter(fiveMinutesAgo) && 
-                scheduleDateTime.isBefore(now)) {
+            if (scheduleTime.getHour() == currentTime.getHour() && 
+                scheduleTime.getMinute() == currentTime.getMinute()) {
                 
-                // Kiểm tra lastExecutedAt để tránh execute nhiều lần
-                if (schedule.getLastExecutedAt() == null || 
-                    schedule.getLastExecutedAt().isBefore(now.minusMinutes(10))) {
-                    isMissedRecently = true;
-                    log.warn("🔄 CATCH-UP: Found missed schedule '{}' at {} (current: {})", 
-                            schedule.getName(), scheduleTime, currentTime);
+                // Kiểm tra ngày lặp lại
+                if (isScheduleActiveToday(schedule.getRepeatDays(), appDayOfWeek)) {
+                    executeSchedule(schedule);
                 }
             }
-            
-            // Execute nếu match thời gian HOẶC bị bỏ lỡ gần đây
-            if ((isExactTime || isMissedRecently) && 
-                isScheduleActiveToday(schedule.getRepeatDays(), appDayOfWeek)) {
-                executeSchedule(schedule);
-            } else {
-                // Track lịch hẹn gần nhất
-                if (isScheduleActiveToday(schedule.getRepeatDays(), appDayOfWeek) && 
-                    minutesUntil > 0 && minutesUntil < minMinutesUntilNext) {
-                    nextSchedule = schedule;
-                    minMinutesUntilNext = minutesUntil;
-                }
-            }
-        }
-        
-        // ⏳ LOG: Countdown đến lịch hẹn tiếp theo
-        if (nextSchedule != null) {
-            long hours = minMinutesUntilNext / 60;
-            long minutes = minMinutesUntilNext % 60;
-            log.info("⏳ Next schedule: '{}' at {} (in {}h {}m)", 
-                    nextSchedule.getName(), 
-                    nextSchedule.getTime().toString().substring(0, 5),
-                    hours, minutes);
-        } else {
-            log.info("⏳ No upcoming schedules today.");
-        }
-        
-        log.info("=".repeat(60));
-    }
-    
-    /**
-     * Tính số phút từ hiện tại đến thời gian hẹn
-     */
-    private long calculateMinutesUntil(LocalTime current, LocalTime target) {
-        int currentMinutes = current.getHour() * 60 + current.getMinute();
-        int targetMinutes = target.getHour() * 60 + target.getMinute();
-        
-        if (targetMinutes > currentMinutes) {
-            return targetMinutes - currentMinutes;
-        } else {
-            // Lịch hẹn vào ngày mai
-            return (24 * 60 - currentMinutes) + targetMinutes;
-        }
-    }
-    
-    /**
-     * Lấy tên ngày trong tuần
-     */
-    private String getDayName(int day) {
-        switch (day) {
-            case 1: return "Sunday";
-            case 2: return "Monday";
-            case 3: return "Tuesday";
-            case 4: return "Wednesday";
-            case 5: return "Thursday";
-            case 6: return "Friday";
-            case 7: return "Saturday";
-            default: return "Unknown";
         }
     }
     
@@ -176,10 +86,6 @@ public class SchedulerTaskService {
             
             // Gửi lệnh qua MQTT
             mqttService.publish(topic, action);
-            
-            // ✅ Cập nhật lastExecutedAt để tránh execute lại
-            schedule.setLastExecutedAt(LocalDateTime.now());
-            scheduleRepository.save(schedule);
             
             log.info("✅ Schedule executed successfully: {}", schedule.getName());
             
